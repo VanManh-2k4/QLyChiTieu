@@ -60,7 +60,7 @@ export function list(userId) {
 }
 
 export function create(userId, data) {
-  const cat = categoryRepository.findById(data.categoryId);
+  const cat = categoryRepository.findById(data.categoryId, userId);
   if (!cat || cat.type !== 'expense') {
     const err = new Error('Budget requires an expense category');
     err.status = 400;
@@ -113,7 +113,7 @@ export function update(userId, id, data) {
     throw err;
   }
   if (data.categoryId) {
-    const cat = categoryRepository.findById(data.categoryId);
+    const cat = categoryRepository.findById(data.categoryId, userId);
     if (!cat || cat.type !== 'expense') {
       const err = new Error('Budget requires an expense category');
       err.status = 400;

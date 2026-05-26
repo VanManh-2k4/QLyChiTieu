@@ -14,7 +14,7 @@ export function createTransaction(userId, body) {
     err.status = 404;
     throw err;
   }
-  const category = categoryRepository.findById(categoryId);
+  const category = categoryRepository.findById(categoryId, userId);
   if (!category) {
     const err = new Error('Category not found');
     err.status = 404;
