@@ -270,7 +270,28 @@ export function Transactions() {
   const categoryCards = useMemo(
     () =>
       categories
-        .filter((c) => c.type === form.type)
+        .filter((c) => {
+          if (c.type !== form.type) return false;
+
+          // For expense type, only show categories with budget
+          if (form.type === 'expense') {
+            const txDate = new Date(form.date || nowLocalDateTime());
+            const txMonth = txDate.getMonth() + 1;
+            const txYear = txDate.getFullYear();
+
+            const hasBudget = budgets.some(
+              (b) =>
+                Number(b.categoryId) === c.id &&
+                Number(b.month) === txMonth &&
+                Number(b.year) === txYear &&
+                Number(b.amount) > 0
+            );
+            return hasBudget;
+          }
+
+          // For income type, show all income categories
+          return true;
+        })
         .sort((a, b) => {
           const order = form.type === 'expense' ? EXPENSE_CATEGORY_ORDER : INCOME_CATEGORY_ORDER;
           const indexA = order.indexOf(a.name);
@@ -280,7 +301,7 @@ export function Transactions() {
           if (safeA !== safeB) return safeA - safeB;
           return a.name.localeCompare(b.name, 'vi');
         }),
-    [categories, form.type]
+    [categories, form.type, budgets, form.date]
   );
 
   const filteredCategoryCards = useMemo(() => {

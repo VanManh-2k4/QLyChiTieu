@@ -33,15 +33,19 @@ export function createTransaction(userId, body) {
     const txYear = txDate.getFullYear();
 
     if (type === 'expense') {
-      // Mô hình hiện đại: không bắt buộc phải có ngân sách
-      // Budget chỉ là kế hoạch chi tiêu để theo dõi
+      // Phải có ngân sách cho danh mục thì mới cho phép thêm giao dịch chi tiêu
       const budget = budgetRepository.findByUserCategoryMonthYear(
         userId,
         categoryId,
         txMonth,
         txYear
       );
-      // Trừ tiền từ ví khi chi tiêu (modern financial model)
+      if (!budget || Number(budget.amount) <= 0) {
+        const err = new Error('Danh mục này chưa thiết lập ngân sách. Vui lòng thiết lập ngân sách trước khi thêm giao dịch.');
+        err.status = 400;
+        throw err;
+      }
+      // Trừ tiền từ ví khi chi tiêu
       walletRepository.adjustBalance(walletId, -amount);
     } else {
       walletRepository.adjustBalance(walletId, amount);
