@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --app-bg: #f5f7ff;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8faff;
+  --app-text: #0f172a;
+  --app-text-muted: #475569;
+  --app-border: #dbe3f1;
+  --app-primary: #4f46e5;
+  --app-primary-2: #7c3aed;
+  --app-primary-contrast: #ffffff;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html[data-app-theme] .bg-white {
+  background-color: var(--app-surface) !important;
+}
+
+html[data-app-theme] .bg-slate-50,
+html[data-app-theme] .bg-slate-100,
+html[data-app-theme] .bg-slate-50\/40 {
+  background-color: var(--app-surface-soft) !important;
+}
+
+html[data-app-theme] .text-slate-900,
+html[data-app-theme] .text-slate-800,
+html[data-app-theme] .text-slate-700 {
+  color: var(--app-text) !important;
+}
+
+html[data-app-theme] .text-slate-600,
+html[data-app-theme] .text-slate-500,
+html[data-app-theme] .text-slate-400 {
+  color: var(--app-text-muted) !important;
+}
+
+html[data-app-theme] .border-slate-100,
+html[data-app-theme] .border-slate-200,
+html[data-app-theme] .border-slate-300,
+html[data-app-theme] .ring-slate-100,
+html[data-app-theme] .ring-slate-200 {
+  border-color: var(--app-border) !important;
+  --tw-ring-color: var(--app-border) !important;
+}
+
+html[data-app-theme] input,
+html[data-app-theme] select,
+html[data-app-theme] textarea {
+  background-color: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-text) !important;
+}
+
+html[data-app-theme] button[class*='bg-gradient-to-r'],
+html[data-app-theme] button[class*='bg-indigo-600'],
+html[data-app-theme] button[class*='bg-slate-900'] {
+  background-image: linear-gradient(
+    90deg,
+    var(--app-primary),
+    var(--app-primary-2)
+  ) !important;
+  color: var(--app-primary-contrast) !important;
+}
+
+html[data-app-theme] .from-indigo-600,
+html[data-app-theme] .via-violet-600,
+html[data-app-theme] .to-violet-600,
+html[data-app-theme] .to-fuchsia-600 {
+  --tw-gradient-from: var(--app-primary) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  --tw-gradient-to: var(--app-primary-2) var(--tw-gradient-to-position) !important;
+}
