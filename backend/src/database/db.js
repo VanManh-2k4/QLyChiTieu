@@ -350,3 +350,38 @@ export function ensurePresetCategories(db) {
     });
   });
 }
+
+export function ensurePresetCategoriesForUser(db, userId) {
+  const presetCategories = [
+    ['Ăn uống', 'expense'],
+    ['Chi tiêu hằng ngày', 'expense'],
+    ['Quần áo', 'expense'],
+    ['Mỹ phẩm', 'expense'],
+    ['Giáo dục', 'expense'],
+    ['Phí giao lưu', 'expense'],
+    ['Y tế', 'expense'],
+    ['Tiền điện', 'expense'],
+    ['Đi lại', 'expense'],
+    ['Phí liên lạc', 'expense'],
+    ['Tiền nhà', 'expense'],
+    ['Tiền lương', 'income'],
+    ['Tiền phụ cấp', 'income'],
+    ['Tiền thưởng', 'income'],
+    ['Thu nhập thêm', 'income'],
+    ['Đầu tư', 'income'],
+    ['Thu nhập khác', 'income'],
+    ['Tiền hoàn', 'income'],
+  ];
+
+  const insertCategory = db.prepare('INSERT INTO categories (userId, name, type) VALUES (?, ?, ?)');
+  
+  presetCategories.forEach(([name, type]) => {
+    const hasCategory = db.prepare(
+      'SELECT id FROM categories WHERE userId = ? AND LOWER(name) = LOWER(?) AND type = ? LIMIT 1'
+    );
+    const existed = hasCategory.get(userId, name, type);
+    if (!existed) {
+      insertCategory.run(userId, name, type);
+    }
+  });
+}

@@ -7,7 +7,7 @@ import { signToken, verifyToken } from '../utils/jwt.js';
 import { config } from '../config/index.js';
 import { decryptText, encryptText, randomToken, sha256Hex } from '../utils/crypto.js';
 import speakeasy from 'speakeasy';
-import { getDb, ensurePresetCategories } from '../database/db.js';
+import { getDb, ensurePresetCategoriesForUser } from '../database/db.js';
 
 export function register({ name, email, password }) {
   const cleanName = String(name).trim();
@@ -39,7 +39,7 @@ export function register({ name, email, password }) {
   walletRepository.create({ userId: user.id, name: 'Ví chính', balance: 0 });
   walletRepository.create({ userId: user.id, name: 'Ví tiền mặt', balance: 0 });
   const db = getDb();
-  ensurePresetCategories(db);
+  ensurePresetCategoriesForUser(db, user.id);
   const token = signToken({
     sub: user.id,
     email: user.email,

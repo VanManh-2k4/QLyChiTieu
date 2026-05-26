@@ -35,7 +35,7 @@ export function getWeeklyReport(userId, year, week) {
     byCategory[t.categoryId].count += 1;
   });
 
-  const categories = categoryRepository.listAll();
+  const categories = categoryRepository.listAll(userId);
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
@@ -72,7 +72,7 @@ export function getMonthlyReport(userId, year, month) {
     byCategory[t.categoryId].count += 1;
   });
 
-  const categories = categoryRepository.listAll();
+  const categories = categoryRepository.listAll(userId);
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
@@ -114,7 +114,7 @@ export function getQuarterlyReport(userId, year, quarter) {
     byCategory[t.categoryId].count += 1;
   });
 
-  const categories = categoryRepository.listAll();
+  const categories = categoryRepository.listAll(userId);
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
@@ -158,7 +158,7 @@ export function getYearlyReport(userId, year) {
     byMonth[month] += Number(t.amount);
   });
 
-  const categories = categoryRepository.listAll();
+  const categories = categoryRepository.listAll(userId);
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
@@ -280,7 +280,7 @@ export function analyzeTrends(userId, periodType, periods) {
       byCategory[t.categoryId].count += 1;
     });
 
-    const categories = categoryRepository.listAll();
+    const categories = categoryRepository.listAll(userId);
     const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
     // Separate budgeted and non-budgeted categories
@@ -550,7 +550,7 @@ export function suggestSavings(userId, periodType, period) {
     report = getYearlyReport(userId, period.year);
   }
 
-  const categories = categoryRepository.listAll().filter((c) => c.type === 'expense');
+  const categories = categoryRepository.listAll(userId).filter((c) => c.type === 'expense');
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   const suggestions = [];
@@ -734,7 +734,7 @@ export function compareWithBudget(userId, year, month) {
     byCategory[t.categoryId].count += 1;
   });
 
-  const categories = categoryRepository.listAll().filter((c) => c.type === 'expense');
+  const categories = categoryRepository.listAll(userId).filter((c) => c.type === 'expense');
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   // Get budgets for this month
@@ -1016,7 +1016,7 @@ export function getMonthlySummary(userId, year, month) {
     byCategory[t.categoryId].count += 1;
   });
 
-  const categories = categoryRepository.listAll().filter((c) => c.type === 'expense');
+  const categories = categoryRepository.listAll(userId).filter((c) => c.type === 'expense');
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
@@ -1345,7 +1345,7 @@ export function detectAnomalies(userId, year, month) {
     return t.type === 'expense' && date.getFullYear() === year && date.getMonth() + 1 === month;
   });
 
-  const categories = categoryRepository.listAll().filter((c) => c.type === 'expense');
+  const categories = categoryRepository.listAll(userId).filter((c) => c.type === 'expense');
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const byCategory = {};
