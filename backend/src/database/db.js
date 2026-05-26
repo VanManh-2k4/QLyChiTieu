@@ -311,7 +311,7 @@ function seedIfNeeded(db) {
   ensurePresetCategories(db);
 }
 
-function ensurePresetCategories(db) {
+export function ensurePresetCategories(db) {
   const presetCategories = [
     ['Ăn uống', 'expense'],
     ['Chi tiêu hằng ngày', 'expense'],
