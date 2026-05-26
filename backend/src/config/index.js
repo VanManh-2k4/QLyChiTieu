@@ -11,5 +11,5 @@ export const config = {
   twoFactorEncryptionKey:
     process.env.TWO_FACTOR_ENCRYPTION_KEY || 'dev-2fa-key-change-in-production',
   nodeEnv: process.env.NODE_ENV || 'development',
-  dbPath: path.join(__dirname, '../../database/db.sqlite'),
+  dbPath: process.env.DB_PATH || path.join(__dirname, '../../database/db.sqlite'),
 };
