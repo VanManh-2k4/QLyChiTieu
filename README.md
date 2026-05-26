@@ -22,16 +22,13 @@
   <a href="#-công-nghệ-sử-dụng">Công nghệ</a> •
   <a href="#-cài-đặt">Cài đặt</a> •
   <a href="#-hướng-dẫn-sử-dụng">Hướng dẫn</a> •
-  <a href="#-api-overview">API</a> •
-  <a href="#-roadmap">Roadmap</a>
+  <a href="#-api-overview">API</a>
 </p>
 
 <div align="center">
 
   ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
   ![License](https://img.shields.io/badge/license-MIT-green.svg)
-  ![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
-  ![Issues](https://img.shields.io/badge/issues-welcome-orange.svg)
 
 </div>
 
@@ -42,11 +39,6 @@
 <div align="center">
   <img src="https://via.placeholder.com/1200x600/4F46E5/FFFFFF?text=Dashboard+View" alt="Dashboard View" width="800">
   <p><em>Giao diện Dashboard với biểu đồ thu/chi theo danh mục và tháng</em></p>
-</div>
-
-<div align="center">
-  <img src="https://via.placeholder.com/1200x400/10B981/FFFFFF?text=Transaction+Management" alt="Transaction View" width="800">
-  <p><em>Giao diện quản lý giao dịch với calendar view</em></p>
 </div>
 
 ---
@@ -64,10 +56,37 @@
 - Export báo cáo đa định dạng (CSV, Excel, Backup JSON)
 - Hệ thống lịch sử hoạt động chi tiết
 - Giao diện hiện đại với theme tùy chỉnh
+- Hệ thống authentication bảo mật với JWT
 
 ---
 
 ## ✨ Tính năng chính
+
+### 🔐 Authentication & Security
+- Đăng ký/Đăng nhập với JWT
+- Mã hóa mật khẩu với bcrypt
+- Protected routes với middleware
+- Profile page để cập nhật thông tin cá nhân
+- Đổi mật khẩu với validation
+- Field-specific error handling cho login/register
+- Rate limiting cho API endpoints
+- CORS configuration an toàn
+
+### 👤 Quản lý Hồ Sơ
+- Cập nhật tên hiển thị
+- Cập nhật email
+- Cập nhật avatar URL
+- Đổi mật khẩu với validation
+- Glassmorphism UI design
+- Hỗ trợ dark mode
+
+### ℹ️ Giới Thiệu Hệ Thống
+- Giới thiệu sơ bộ về hệ thống
+- Tính năng chính
+- Hướng dẫn sử dụng cơ bản (5 bước)
+- Mẹo nhanh
+- Thông tin bảo mật
+- Phiên bản ứng dụng
 
 ### 💳 Quản lý Ví
 - Tạo, sửa, xóa ví
@@ -150,14 +169,6 @@
 - Modal, Form, Table, Chart responsive
 - Button touch optimization
 
-### 🔒 Authentication & Security
-- Đăng ký/Đăng nhập với JWT
-- Mã hóa mật khẩu với bcrypt
-- 2FA với TOTP (speakeasy)
-- Backup codes cho 2FA
-- Reset mật khẩu qua email
-- Protected routes với middleware
-
 ---
 
 ## 🛠️ Công nghệ sử dụng
@@ -169,8 +180,7 @@
 ![JWT](https://img.shields.io/badge/JWT-jsonwebtoken-000000?style=flat-square&logo=jsonwebtoken&logoColor=white)
 ![Bcrypt](https://img.shields.io/badge/Bcrypt-bcryptjs-000000?style=flat-square&logo=bcrypt&logoColor=white)
 ![Joi](https://img.shields.io/badge/Joi-Validation-4A90E2?style=flat-square&logo=joi&logoColor=white)
-![Speakeasy](https://img.shields.io/badge/Speakeasy-2FA-000000?style=flat-square&logo=otp&logoColor=white)
-![CORS](https://img.shields.io/badge/CORS-2.8.5-000000?style=flat-square&logo=cors&logoColor=white)
+![Rate Limit](https://img.shields.io/badge/Rate_Limit-express--rate--limit-000000?style=flat-square&logo=express&logoColor=white)
 
 ### Frontend
 ![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react&logoColor=white)
@@ -261,6 +271,7 @@ QLyChiTieu/
 │   │   └── index.html               # HTML template
 │   ├── src/
 │   │   ├── components/              # Reusable components
+│   │   │   ├── AccountMenu.jsx
 │   │   │   ├── Card.jsx
 │   │   │   ├── ConfirmDialog.jsx
 │   │   │   ├── Modal.jsx
@@ -277,11 +288,14 @@ QLyChiTieu/
 │   │   │   └── MainLayout.jsx
 │   │   ├── pages/                   # Page components
 │   │   │   ├── Login.jsx
+│   │   │   ├── Register.jsx
 │   │   │   ├── Dashboard.jsx
 │   │   │   ├── Wallets.jsx
 │   │   │   ├── Transactions.jsx
 │   │   │   ├── Budget.jsx
 │   │   │   ├── Savings.jsx
+│   │   │   ├── Profile.jsx
+│   │   │   ├── About.jsx
 │   │   │   └── MenuTools.jsx
 │   │   ├── routes/                  # React Router configuration
 │   │   │   └── AppRoutes.jsx
@@ -323,7 +337,7 @@ QLyChiTieu/
 ### Clone repository
 
 ```bash
-git clone https://github.com/your-username/QLyChiTieu.git
+git clone https://github.com/VanManh-2k4/QLyChiTieu.git
 cd QLyChiTieu
 ```
 
@@ -356,17 +370,20 @@ NODE_ENV=development
 
 # JWT Configuration
 JWT_SECRET=change-me-in-production-use-long-random-string
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=1d
+
+# 2FA Configuration
+TWO_FACTOR_ENCRYPTION_KEY=change-me-in-production-use-long-random-string
+
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
 
 # Database Configuration
 DB_PATH=./src/database/db.sqlite
-
-# 2FA Configuration
-2FA_ISSUER=QLyChiTieu
 ```
 
 **⚠️ Lưu ý quan trọng:**
-- Thay đổi `JWT_SECRET` trong môi trường production
+- Thay đổi `JWT_SECRET` và `TWO_FACTOR_ENCRYPTION_KEY` trong môi trường production
 - `DB_PATH` sẽ tự động tạo file SQLite nếu chưa tồn tại
 
 ### Cấu hình Database
@@ -416,39 +433,43 @@ Frontend sẽ chạy tại: `http://localhost:5173`
 
 Vite sẽ tự động proxy API requests đến backend tại `http://localhost:3001`.
 
-### Truy cập từ điện thoại
-
-Để truy cập ứng dụng từ điện thoại trên cùng mạng WiFi:
-
-1. Tìm IP address của máy tính:
-   - Windows: Mở Command Prompt, gõ `ipconfig`, tìm IPv4 Address (ví dụ: 192.168.1.5)
-   - Mac/Linux: Mở Terminal, gõ `ifconfig` hoặc `ip a`
-
-2. Trên điện thoại, mở trình duyệt và truy cập:
-   ```
-   http://192.168.1.5:5173
-   ```
-   (Thay 192.168.1.5 bằng IP của bạn)
-
-**Lưu ý:** Đảm bảo điện thoại và máy tính đang kết nối cùng mạng WiFi.
-
 ---
 
 ## 📖 Hướng dẫn sử dụng
 
-### Tài khoản test mẫu
+### Đăng ký tài khoản
 
-Sau khi chạy ứng dụng lần đầu, bạn có thể sử dụng tài khoản mặc định hoặc đăng ký mới:
+1. Truy cập `http://localhost:5173/register`
+2. Nhập họ tên, email, mật khẩu, xác nhận mật khẩu
+3. Click "Đăng ký"
+4. Tài khoản sẽ được tạo và tự động đăng nhập
 
-**Tài khoản mặc định (được tạo trong code):**
-- **Email**: `user@test.com`
-- **Mật khẩu**: `123456`
+### Đăng nhập
 
-**Hoặc đăng ký tài khoản mới:**
 1. Truy cập `http://localhost:5173/login`
-2. Chọn "Đăng ký" (nếu có tính năng đăng ký)
-3. Nhập email, mật khẩu và thông tin cần thiết
-4. Xác nhận đăng ký
+2. Nhập email và mật khẩu
+3. Click "Đăng nhập"
+4. Sẽ được chuyển đến Dashboard
+
+### Cập nhật hồ sơ
+
+1. Click vào avatar ở góc phải
+2. Chọn "Hồ sơ cá nhân"
+3. Cập nhật tên, email, avatar
+4. Click "Lưu thay đổi"
+
+### Đổi mật khẩu
+
+1. Vào trang "Hồ sơ cá nhân"
+2. Chuyển sang tab "Đổi mật khẩu"
+3. Nhập mật khẩu hiện tại, mật khẩu mới, xác nhận mật khẩu
+4. Click "Lưu thay đổi"
+
+### Xem giới thiệu hệ thống
+
+1. Click vào avatar ở góc phải
+2. Chọn "Giới thiệu"
+3. Xem thông tin về hệ thống và hướng dẫn sử dụng
 
 ### Quy trình sử dụng cơ bản
 
@@ -483,11 +504,10 @@ Authorization: Bearer <token>
 #### Auth
 - `POST /auth/register` - Đăng ký tài khoản
 - `POST /auth/login` - Đăng nhập
-- `POST /auth/verify-2fa` - Xác thực 2FA
-- `POST /auth/enable-2fa` - Bật 2FA
-- `POST /auth/disable-2fa` - Tắt 2FA
-- `POST /auth/request-password-reset` - Yêu cầu reset mật khẩu
-- `POST /auth/reset-password` - Reset mật khẩu
+- `GET /auth/me` - Lấy thông tin user hiện tại
+- `PUT /auth/profile` - Cập nhật hồ sơ
+- `PUT /auth/change-password` - Đổi mật khẩu
+- `POST /auth/logout` - Đăng xuất
 
 #### Wallets
 - `GET /wallets` - Lấy danh sách ví
@@ -596,42 +616,16 @@ server {
 }
 ```
 
-### Deploy với Docker (Tùy chọn)
-
-**Dockerfile cho Backend:**
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY backend/package*.json ./
-RUN npm install --production
-COPY backend/ .
-EXPOSE 3001
-CMD ["node", "server.js"]
-```
-
-**Dockerfile cho Frontend:**
-
-```dockerfile
-FROM node:20-alpine as build
-WORKDIR /app
-COPY frontend/package*.json ./
-RUN npm install
-COPY frontend/ .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-```
-
 ---
 
 ## 🗺️ Roadmap phát triển
 
 ### ✅ Version 1.0 (Hoàn thành)
 - [x] Authentication với JWT
+- [x] Profile page với cập nhật thông tin
+- [x] Đổi mật khẩu với validation
+- [x] About page với hướng dẫn sử dụng
+- [x] Field-specific error handling cho login/register
 - [x] Quản lý ví, giao dịch, danh mục
 - [x] Quản lý ngân sách với cảnh báo và health score
 - [x] Quản lý tiết kiệm
@@ -641,11 +635,10 @@ EXPOSE 80
 - [x] Báo cáo phân tích (Trends, Summary, Budget, Goals, Savings Suggestions)
 - [x] Export CSV, Excel, JSON
 - [x] Theme system
-- [x] 2FA với TOTP và Backup codes
 - [x] Responsive design cho mobile
+- [x] Rate limiting và CORS security
 
 ### 🚧 Version 1.1 (Đang phát triển)
-- [ ] Dark mode hoàn chỉnh
 - [ ] Multi-language support (Tiếng Việt, English)
 - [ ] Recurring transactions (giao dịch định kỳ)
 - [ ] Notification system (thông báo qua email/browser)
@@ -661,54 +654,9 @@ EXPOSE 80
 
 ---
 
-## 🤝 Đóng góp dự án
-
-Contributions, issues và feature requests đều được chào đón!
-
-### Cách đóng góp
-
-1. Fork dự án
-2. Tạo branch mới (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push đến branch (`git push origin feature/AmazingFeature`)
-5. Mở Pull Request
-
-### Coding Standards
-
-- Sử dụng ESLint cho code linting
-- Tuân thủ Prettier cho code formatting
-- Viết comment cho các function phức tạp
-- Tuân thủ conventional commits
-
----
-
 ## 📄 License
 
-Dự án này được cấp phép theo MIT License - xem file [LICENSE](LICENSE) để biết chi tiết.
-
-```
-MIT License
-
-Copyright (c) 2026 QLyChiTieu
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+Dự án này được cấp phép theo MIT License.
 
 ---
 
@@ -716,13 +664,7 @@ SOFTWARE.
 
 **Tên dự án:** QLyChiTieu - Quản Lý Chi Tiêu Cá Nhân
 
-**Author:** [Tên của bạn]
-
-**Email:** [email của bạn]
-
-**GitHub:** [GitHub username]
-
-**LinkedIn:** [LinkedIn profile]
+**GitHub:** https://github.com/VanManh-2k4/QLyChiTieu
 
 ---
 
@@ -730,6 +672,7 @@ SOFTWARE.
 
   **Nếu bạn thích dự án này, hãy ⭐️ star repository để ủng hộ!**
 
-  Made with ❤️ by QLyChiTieu Team
+  Made with ❤️ by VanManh-2k4
 
 </div>
+
