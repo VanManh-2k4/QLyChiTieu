@@ -283,15 +283,44 @@ export function analyzeTrends(userId, periodType, periods) {
     const categories = categoryRepository.listAll();
     const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
-    const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => ({
-      categoryId: Number(catId),
-      categoryName: categoryMap.get(Number(catId)) || 'Unknown',
-      amount: data.amount,
-      count: data.count,
-      percentage: expense > 0 ? (data.amount / expense) * 100 : 0,
-      budget: budgetByCategory[catId] || 0,
-      budgetUsed: budgetByCategory[catId] ? (data.amount / budgetByCategory[catId]) * 100 : 0,
-    }));
+    // Separate budgeted and non-budgeted categories
+    const budgetedCategoryBreakdown = [];
+    const nonBudgetedCategoryBreakdown = [];
+
+    Object.entries(byCategory).forEach(([catId, data]) => {
+      const budgetAmount = budgetByCategory[catId] || 0;
+
+      if (budgetAmount > 0) {
+        // Category has budget
+        budgetedCategoryBreakdown.push({
+          categoryId: Number(catId),
+          categoryName: categoryMap.get(Number(catId)) || 'Unknown',
+          amount: data.amount,
+          count: data.count,
+          percentage: expense > 0 ? (data.amount / expense) * 100 : 0,
+          budget: budgetAmount,
+          budgetUsed: (data.amount / budgetAmount) * 100,
+          hasBudget: true,
+        });
+      } else {
+        // Category has no budget
+        nonBudgetedCategoryBreakdown.push({
+          categoryId: Number(catId),
+          categoryName: categoryMap.get(Number(catId)) || 'Unknown',
+          amount: data.amount,
+          count: data.count,
+          percentage: expense > 0 ? (data.amount / expense) * 100 : 0,
+          budget: 0,
+          budgetUsed: 0,
+          hasBudget: false,
+        });
+      }
+    });
+
+    const categoryBreakdown = [...budgetedCategoryBreakdown, ...nonBudgetedCategoryBreakdown];
+
+    // Calculate budgeted expense (only for categories with budget)
+    const budgetedExpense = budgetedCategoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
 
     return {
       period: p,
@@ -301,7 +330,7 @@ export function analyzeTrends(userId, periodType, periods) {
       savingsRate,
       transactionCount: filtered.length,
       totalBudget,
-      budgetUsed: totalBudget > 0 ? (expense / totalBudget) * 100 : 0,
+      budgetUsed: totalBudget > 0 ? (budgetedExpense / totalBudget) * 100 : 0,
       categoryBreakdown,
     };
   });
@@ -712,27 +741,53 @@ export function compareWithBudget(userId, year, month) {
   const budgets = budgetRepository.listByUserMonthYear(userId, month, year);
   const budgetMap = new Map(budgets.map((b) => [b.categoryId, b]));
 
-  const categoryBreakdown = Object.entries(byCategory).map(([catId, data]) => {
+  // Separate categories into budgeted and non-budgeted
+  const budgetedCategoryBreakdown = [];
+  const nonBudgetedCategoryBreakdown = [];
+
+  Object.entries(byCategory).forEach(([catId, data]) => {
     const budget = budgetMap.get(Number(catId));
     const budgetAmount = budget ? Number(budget.amount) : 0;
-    const remaining = budgetAmount - data.amount;
-    const percentUsed = budgetAmount > 0 ? (data.amount / budgetAmount) * 100 : 0;
-    return {
-      categoryId: Number(catId),
-      categoryName: categoryMap.get(Number(catId)) || 'Unknown',
-      amount: data.amount,
-      count: data.count,
-      budget: budgetAmount,
-      remaining,
-      percentUsed,
-      exceeded: data.amount > budgetAmount,
-    };
+    
+    if (budget && budgetAmount > 0) {
+      // Category has budget - include in budget analysis
+      const remaining = budgetAmount - data.amount;
+      const percentUsed = budgetAmount > 0 ? (data.amount / budgetAmount) * 100 : 0;
+      budgetedCategoryBreakdown.push({
+        categoryId: Number(catId),
+        categoryName: categoryMap.get(Number(catId)) || 'Unknown',
+        amount: data.amount,
+        count: data.count,
+        budget: budgetAmount,
+        remaining,
+        percentUsed,
+        exceeded: data.amount > budgetAmount,
+        hasBudget: true,
+      });
+    } else {
+      // Category has no budget - only track spending
+      nonBudgetedCategoryBreakdown.push({
+        categoryId: Number(catId),
+        categoryName: categoryMap.get(Number(catId)) || 'Unknown',
+        amount: data.amount,
+        count: data.count,
+        budget: 0,
+        remaining: 0,
+        percentUsed: 0,
+        exceeded: false,
+        hasBudget: false,
+      });
+    }
   });
 
-  // Calculate total budget
+  // Combine both breakdowns
+  const categoryBreakdown = [...budgetedCategoryBreakdown, ...nonBudgetedCategoryBreakdown];
+
+  // Calculate total budget and expense only for budgeted categories
   const totalBudget = budgets.reduce((sum, b) => sum + Number(b.amount), 0);
-  const totalRemaining = totalBudget - totalExpense;
-  const totalPercentUsed = totalBudget > 0 ? (totalExpense / totalBudget) * 100 : 0;
+  const budgetedExpense = budgetedCategoryBreakdown.reduce((sum, c) => sum + c.amount, 0);
+  const totalRemaining = totalBudget - budgetedExpense;
+  const totalPercentUsed = totalBudget > 0 ? (budgetedExpense / totalBudget) * 100 : 0;
 
   // Budget Health Score (0-100)
   let healthScore = 50;
@@ -785,8 +840,8 @@ export function compareWithBudget(userId, year, month) {
   // Clamp score between 0 and 100
   healthScore = Math.max(0, Math.min(100, healthScore));
 
-  // Overspending alerts
-  const overspendingAlerts = categoryBreakdown
+  // Overspending alerts - only for budgeted categories
+  const overspendingAlerts = budgetedCategoryBreakdown
     .filter((c) => c.exceeded)
     .map((c) => ({
       categoryId: c.categoryId,
@@ -798,23 +853,29 @@ export function compareWithBudget(userId, year, month) {
     }))
     .sort((a, b) => b.overspentPercent - a.overspentPercent);
 
-  // Budget history (last 6 months)
+  // Budget history (last 6 months) - only for budgeted categories
   const budgetHistory = [];
   for (let i = 5; i >= 0; i--) {
     const historyDate = new Date(year, month - i - 1, 1);
     const hYear = historyDate.getFullYear();
     const hMonth = historyDate.getMonth() + 1;
-    
-    const hFiltered = rows.filter((t) => {
-      const date = new Date(t.date);
-      return t.type === 'expense' && date.getFullYear() === hYear && date.getMonth() + 1 === hMonth;
-    });
-    
-    const hExpense = hFiltered.reduce((sum, t) => sum + Number(t.amount), 0);
+
     const hBudgets = budgetRepository.listByUserMonthYear(userId, hMonth, hYear);
     const hTotalBudget = hBudgets.reduce((sum, b) => sum + Number(b.amount), 0);
+
+    // Only calculate expense for budgeted categories
+    const hBudgetedCategoryIds = hBudgets.map(b => b.categoryId);
+    const hFiltered = rows.filter((t) => {
+      const date = new Date(t.date);
+      return t.type === 'expense' &&
+             date.getFullYear() === hYear &&
+             date.getMonth() + 1 === hMonth &&
+             hBudgetedCategoryIds.includes(t.categoryId);
+    });
+
+    const hExpense = hFiltered.reduce((sum, t) => sum + Number(t.amount), 0);
     const hPercentUsed = hTotalBudget > 0 ? (hExpense / hTotalBudget) * 100 : 0;
-    
+
     budgetHistory.push({
       month: hMonth,
       year: hYear,
@@ -858,19 +919,22 @@ export function compareWithBudget(userId, year, month) {
     });
   }
 
-  // Find frequently overspent categories
+  // Find frequently overspent categories - only for budgeted categories
   const frequentlyOverspent = [];
   for (const cat of categories) {
     let overspentCount = 0;
+    let hasBudgetInAnyMonth = false;
+
     for (let i = 0; i < 6; i++) {
       const hDate = new Date(year, month - i - 1, 1);
       const hYear = hDate.getFullYear();
       const hMonth = hDate.getMonth() + 1;
-      
+
       const hBudgets = budgetRepository.listByUserMonthYear(userId, hMonth, hYear);
       const hBudget = hBudgets.find((b) => b.categoryId === cat.id);
-      
+
       if (hBudget) {
+        hasBudgetInAnyMonth = true;
         const hFiltered = rows.filter((t) => {
           const date = new Date(t.date);
           return t.type === 'expense' && t.categoryId === cat.id && date.getFullYear() === hYear && date.getMonth() + 1 === hMonth;
@@ -881,8 +945,9 @@ export function compareWithBudget(userId, year, month) {
         }
       }
     }
-    
-    if (overspentCount >= 3) {
+
+    // Only include categories that have budget in at least one month
+    if (hasBudgetInAnyMonth && overspentCount >= 3) {
       frequentlyOverspent.push({
         categoryId: cat.id,
         categoryName: cat.name,
