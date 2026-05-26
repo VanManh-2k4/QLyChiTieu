@@ -10,6 +10,8 @@ import {
   twoFactorVerifySchema,
   twoFactorConfirmEnableSchema,
   twoFactorDisableSchema,
+  changePasswordSchema,
+  updateProfileSchema,
 } from '../utils/validators.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
@@ -28,6 +30,21 @@ router.post(
   authController.register
 );
 router.post('/login', authLimiter, validateBody(loginSchema), authController.login);
+
+router.get('/me', authMiddleware, authController.getMe);
+router.put(
+  '/profile',
+  authMiddleware,
+  validateBody(updateProfileSchema),
+  authController.updateProfile
+);
+router.put(
+  '/change-password',
+  authMiddleware,
+  validateBody(changePasswordSchema),
+  authController.changePassword
+);
+router.post('/logout', authMiddleware, authController.logout);
 
 router.post(
   '/forgot-password',

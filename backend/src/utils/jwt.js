@@ -2,7 +2,9 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 
 export function signToken(payload, options = {}) {
-  const { expiresIn = '7d' } = options;
+  // SECURITY: Reduced from 7d to 1d for better security
+  // Shorter expiration reduces the window for token theft
+  const { expiresIn = '1d' } = options;
   return jwt.sign(payload, config.jwtSecret, { expiresIn });
 }
 

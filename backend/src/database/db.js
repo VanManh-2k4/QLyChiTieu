@@ -49,8 +49,10 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
       name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK(type IN ('income','expense'))
+      type TEXT NOT NULL CHECK(type IN ('income','expense')),
+      FOREIGN KEY (userId) REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS transactions (
@@ -228,6 +230,30 @@ function migrate(db) {
   if (!hasCol('twoFactorTempExpiresAt')) {
     db.exec(`ALTER TABLE users ADD COLUMN twoFactorTempExpiresAt DATETIME;`);
   }
+  if (!hasCol('avatar')) {
+    db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT;`);
+  }
+  if (!hasCol('updatedAt')) {
+    db.exec(`ALTER TABLE users ADD COLUMN updatedAt DATETIME;`);
+    db.exec(`UPDATE users SET updatedAt = createdAt WHERE updatedAt IS NULL;`);
+  }
+
+  // Migrate categories to add userId for existing databases
+  const categoryCols = db.prepare(`PRAGMA table_info(categories)`).all();
+  const hasCategoryUserId = categoryCols.some((c) => c.name === 'userId');
+  if (!hasCategoryUserId) {
+    db.exec(`ALTER TABLE categories ADD COLUMN userId INTEGER;`);
+    // Assign existing categories to the first user
+    db.exec(`
+      UPDATE categories
+      SET userId = (
+        SELECT id FROM users WHERE isDeleted = 0 ORDER BY id ASC LIMIT 1
+      )
+      WHERE userId IS NULL
+    `);
+    // Add foreign key constraint (SQLite doesn't support adding FK directly, need to recreate table)
+    // For now, we'll rely on application-level validation
+  }
 
   const budgetCols = db.prepare(`PRAGMA table_info(budgets)`).all();
   const hasBudgetWalletCol = budgetCols.some((c) => c.name === 'walletId');
@@ -306,14 +332,21 @@ function ensurePresetCategories(db) {
     ['Thu nhập khác', 'income'],
     ['Tiền hoàn', 'income'],
   ];
-  const hasCategory = db.prepare(
-    'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND type = ? LIMIT 1'
-  );
-  const insertCategory = db.prepare('INSERT INTO categories (name, type) VALUES (?, ?)');
-  presetCategories.forEach(([name, type]) => {
-    const existed = hasCategory.get(name, type);
-    if (!existed) {
-      insertCategory.run(name, type);
-    }
+
+  // Get all users
+  const users = db.prepare('SELECT id FROM users WHERE isDeleted = 0').all();
+  
+  const insertCategory = db.prepare('INSERT INTO categories (userId, name, type) VALUES (?, ?, ?)');
+  
+  users.forEach((user) => {
+    presetCategories.forEach(([name, type]) => {
+      const hasCategory = db.prepare(
+        'SELECT id FROM categories WHERE userId = ? AND LOWER(name) = LOWER(?) AND type = ? LIMIT 1'
+      );
+      const existed = hasCategory.get(user.id, name, type);
+      if (!existed) {
+        insertCategory.run(user.id, name, type);
+      }
+    });
   });
 }

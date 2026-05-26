@@ -12,6 +12,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
+import { AccountMenu } from '../components/AccountMenu.jsx';
 
 const navClass = ({ isActive }) =>
   `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
@@ -20,31 +21,8 @@ const navClass = ({ isActive }) =>
       : 'text-slate-400 hover:bg-slate-800 hover:text-white hover:scale-105'
   }`;
 
-function getProfileName() {
-  try {
-    const raw = localStorage.getItem('user_profile');
-    if (!raw) return '';
-    const parsed = JSON.parse(raw);
-    return typeof parsed?.name === 'string' ? parsed.name.trim() : '';
-  } catch {
-    return '';
-  }
-}
-
 export function MainLayout() {
-  const [profileName, setProfileName] = useState(() => getProfileName());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const syncProfile = () => setProfileName(getProfileName());
-    window.addEventListener('storage', syncProfile);
-    window.addEventListener('user-profile-updated', syncProfile);
-
-    return () => {
-      window.removeEventListener('storage', syncProfile);
-      window.removeEventListener('user-profile-updated', syncProfile);
-    };
-  }, []);
 
   // Lock body scroll when mobile menu is open
   useEffect(() => {
@@ -142,9 +120,10 @@ export function MainLayout() {
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
               <p className="text-sm font-semibold text-slate-700">
-                {profileName ? `Xin chào ${profileName}!` : 'Quản lý thu chi thông minh'}
+                Quản lý thu chi thông minh
               </p>
             </div>
+            <AccountMenu />
           </div>
         </header>
         <main className="p-4 lg:p-8">

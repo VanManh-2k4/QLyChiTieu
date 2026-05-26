@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { initDb } from './database/db.js';
 import { config } from './config/index.js';
 import { errorHandler } from './middlewares/errorHandler.js';
@@ -18,28 +19,53 @@ import goalRoutes from './routes/goalRoutes.js';
 initDb();
 
 const app = express();
+// SECURITY: Restrict CORS to specific origins in production
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:5173', 'http://127.0.0.1:5174'];
+
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('CORS policy: Origin not allowed'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 app.use(express.json({ limit: '1mb' }));
+
+// SECURITY: Rate limiting for protected routes (prevents API abuse)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 500, // Limit each IP to 500 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later' },
+});
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'QLyChiTieu API' });
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/wallets', walletRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/budgets', budgetRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/savings', savingsRoutes);
-app.use('/api/history', historyRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/goals', goalRoutes);
+app.use('/api/wallets', apiLimiter, walletRoutes);
+app.use('/api/transactions', apiLimiter, transactionRoutes);
+app.use('/api/dashboard', apiLimiter, dashboardRoutes);
+app.use('/api/budgets', apiLimiter, budgetRoutes);
+app.use('/api/categories', apiLimiter, categoryRoutes);
+app.use('/api/savings', apiLimiter, savingsRoutes);
+app.use('/api/history', apiLimiter, historyRoutes);
+app.use('/api/reports', apiLimiter, reportRoutes);
+app.use('/api/goals', apiLimiter, goalRoutes);
 
 app.use(errorHandler);
 

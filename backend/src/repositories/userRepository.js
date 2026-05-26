@@ -11,7 +11,7 @@ export function findById(id) {
   const db = getDb();
   return db
     .prepare(
-      'SELECT id, name, email, role, createdAt, isDeleted, twoFactorEnabled, twoFactorSecretEnc, twoFactorTempSecretEnc, twoFactorTempExpiresAt FROM users WHERE id = ?'
+      'SELECT id, name, email, password, role, avatar, createdAt, updatedAt, isDeleted, twoFactorEnabled, twoFactorSecretEnc, twoFactorTempSecretEnc, twoFactorTempExpiresAt FROM users WHERE id = ?'
     )
     .get(id);
 }
@@ -26,7 +26,7 @@ export function create({ name, email, password, role = 'user' }) {
   return findById(r.lastInsertRowid);
 }
 
-export function update(id, { name, email, password }) {
+export function update(id, { name, email, password, avatar }) {
   const db = getDb();
   const fields = [];
   const vals = [];
@@ -41,6 +41,18 @@ export function update(id, { name, email, password }) {
   if (password !== undefined) {
     fields.push('password = ?');
     vals.push(password);
+  }
+  if (avatar !== undefined) {
+    fields.push('avatar = ?');
+    vals.push(avatar);
+  }
+  if (fields.length > 0) {
+    // Check if updatedAt column exists before trying to update it
+    const cols = db.prepare(`PRAGMA table_info(users)`).all();
+    const hasUpdatedAt = cols.some((c) => c.name === 'updatedAt');
+    if (hasUpdatedAt) {
+      fields.push('updatedAt = CURRENT_TIMESTAMP');
+    }
   }
   if (!fields.length) return findById(id);
   vals.push(id);

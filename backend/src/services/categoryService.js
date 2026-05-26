@@ -1,8 +1,8 @@
 import * as categoryRepository from '../repositories/categoryRepository.js';
 import { logActivity } from './historyService.js';
 
-export function listAll() {
-  return categoryRepository.listAll();
+export function listAll(userId) {
+  return categoryRepository.listAll(userId);
 }
 
 function normalizeType(type) {
@@ -22,13 +22,13 @@ export function create(actorUserId, data) {
     err.status = 400;
     throw err;
   }
-  const existed = categoryRepository.findByNameAndType(name, type);
+  const existed = categoryRepository.findByNameAndType(name, type, actorUserId);
   if (existed) {
     const err = new Error('Danh mục đã tồn tại');
     err.status = 409;
     throw err;
   }
-  const created = categoryRepository.create({ name, type });
+  const created = categoryRepository.create({ name, type, userId: actorUserId });
   logActivity({
     userId: actorUserId,
     actionType: 'create',
@@ -41,7 +41,7 @@ export function create(actorUserId, data) {
 }
 
 export function update(actorUserId, categoryId, data) {
-  const current = categoryRepository.findById(categoryId);
+  const current = categoryRepository.findById(categoryId, actorUserId);
   if (!current) {
     const err = new Error('Category not found');
     err.status = 404;
@@ -59,13 +59,13 @@ export function update(actorUserId, categoryId, data) {
     err.status = 400;
     throw err;
   }
-  const existed = categoryRepository.findByNameAndType(name, type);
+  const existed = categoryRepository.findByNameAndType(name, type, actorUserId);
   if (existed && Number(existed.id) !== Number(categoryId)) {
     const err = new Error('Danh mục đã tồn tại');
     err.status = 409;
     throw err;
   }
-  const updated = categoryRepository.update(categoryId, { name, type });
+  const updated = categoryRepository.update(categoryId, { name, type }, actorUserId);
   logActivity({
     userId: actorUserId,
     actionType: 'update',
@@ -78,7 +78,7 @@ export function update(actorUserId, categoryId, data) {
 }
 
 export function remove(actorUserId, categoryId) {
-  const current = categoryRepository.findById(categoryId);
+  const current = categoryRepository.findById(categoryId, actorUserId);
   if (!current) {
     const err = new Error('Category not found');
     err.status = 404;
@@ -90,7 +90,7 @@ export function remove(actorUserId, categoryId) {
     err.status = 409;
     throw err;
   }
-  categoryRepository.remove(categoryId);
+  categoryRepository.remove(categoryId, actorUserId);
   logActivity({
     userId: actorUserId,
     actionType: 'delete',

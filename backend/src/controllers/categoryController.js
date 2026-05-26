@@ -2,7 +2,7 @@ import * as categoryService from '../services/categoryService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const list = asyncHandler(async (req, res) => {
-  const data = await categoryService.listAll();
+  const data = await categoryService.listAll(req.user.id);
   res.json(data);
 });
 

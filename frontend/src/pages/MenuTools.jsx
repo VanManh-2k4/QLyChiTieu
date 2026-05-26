@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  User,
   ListTree,
   Palette,
   History,
@@ -54,7 +53,6 @@ function HistoryChartTooltip({ active, payload, label }) {
 }
 
 const MENU_ITEMS = [
-  { key: 'profile', label: 'Hồ sơ', icon: User },
   { key: 'categories', label: 'Danh mục', icon: ListTree },
   { key: 'theme', label: 'Theme', icon: Palette },
   { key: 'history', label: 'Lịch sử', icon: History },
@@ -66,7 +64,6 @@ const ACTIVITY_TYPE_OPTIONS = [
   { value: 'transaction', label: 'Giao dịch' },
   { value: 'budget', label: 'Ngân sách' },
   { value: 'wallet', label: 'Ví' },
-  { value: 'profile', label: 'Hồ sơ' },
   { value: 'category', label: 'Danh mục' },
   { value: 'savings', label: 'Tiết kiệm' },
   { value: 'goal', label: 'Mục tiêu tiết kiệm' },
@@ -78,7 +75,6 @@ const ENTITY_TYPE_LABELS = {
   transaction: 'Giao dịch',
   budget: 'Ngân sách',
   wallet: 'Ví',
-  profile: 'Hồ sơ',
   category: 'Danh mục',
   savings: 'Tiết kiệm',
   savings_account: 'Tiết kiệm',
@@ -92,7 +88,6 @@ const ENTITY_TYPE_STYLES = {
   transaction: 'bg-sky-50 text-sky-700 ring-1 ring-sky-100',
   budget: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
   wallet: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
-  profile: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100',
   category: 'bg-violet-50 text-violet-700 ring-1 ring-violet-100',
   savings: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
   savings_account: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
@@ -103,26 +98,11 @@ const ENTITY_TYPE_STYLES = {
 };
 
 const CONTENT = {
-  profile: { title: 'Hồ sơ' },
   categories: { title: 'Danh mục' },
   theme: { title: 'Theme' },
   history: { title: 'Lịch sử' },
   data: { title: 'Dữ liệu' },
 };
-
-function getStoredProfile() {
-  try {
-    const raw = localStorage.getItem('user_profile');
-    if (!raw) return { name: '', occupation: '' };
-    const parsed = JSON.parse(raw);
-    return {
-      name: typeof parsed?.name === 'string' ? parsed.name : '',
-      occupation: typeof parsed?.occupation === 'string' ? parsed.occupation : '',
-    };
-  } catch {
-    return { name: '', occupation: '' };
-  }
-}
 
 export function MenuTools() {
   const { confirm, confirmModal } = useConfirm();
@@ -135,8 +115,7 @@ export function MenuTools() {
       showError(`Không thể xuất ${format}: ${errorMessage}`);
     },
   });
-  const [activeTab, setActiveTab] = useState('profile');
-  const [profile, setProfile] = useState(() => getStoredProfile());
+  const [activeTab, setActiveTab] = useState('categories');
   const [categories, setCategories] = useState([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryType, setNewCategoryType] = useState('expense');
@@ -188,27 +167,6 @@ export function MenuTools() {
   const formatAmount = (value) => {
     if (value === null || value === undefined) return '—';
     return Number(value).toLocaleString('vi-VN');
-  };
-
-  const handleProfileChange = (field) => (event) => {
-    setProfile((prev) => ({ ...prev, [field]: event.target.value }));
-  };
-
-  const handleSaveProfile = async (event) => {
-    event.preventDefault();
-    const ok = await confirm({
-      title: 'Xác nhận sửa hồ sơ',
-      message: 'Bạn chắc chắn sửa không?',
-      confirmText: 'Chắc chắn sửa',
-      variant: 'primary',
-    });
-    if (!ok) return;
-    const nextProfile = {
-      name: profile.name.trim(),
-      occupation: profile.occupation.trim(),
-    };
-    localStorage.setItem('user_profile', JSON.stringify(nextProfile));
-    window.dispatchEvent(new Event('user-profile-updated'));
   };
 
   const loadCategories = async () => {
@@ -511,36 +469,7 @@ export function MenuTools() {
       </Card>
 
       <Card>
-        {activeTab === 'profile' ? (
-          <form onSubmit={handleSaveProfile} className="space-y-5">
-            <div className="grid gap-5 md:grid-cols-2">
-              <label className="space-y-2 text-sm">
-                <span className="font-semibold text-slate-700">Tên</span>
-                <input
-                  type="text"
-                  value={profile.name}
-                  onChange={handleProfileChange('name')}
-                  className="h-11 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none ring-indigo-500/30 transition focus:ring-2"
-                />
-              </label>
-              <label className="space-y-2 text-sm">
-                <span className="font-semibold text-slate-700">Nghề nghiệp</span>
-                <input
-                  type="text"
-                  value={profile.occupation}
-                  onChange={handleProfileChange('occupation')}
-                  className="h-11 w-full rounded-xl border border-slate-300 px-3 py-2 outline-none ring-indigo-500/30 transition focus:ring-2"
-                />
-              </label>
-            </div>
-            <button
-              type="submit"
-              className="h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
-            >
-              Lưu hồ sơ
-            </button>
-          </form>
-        ) : activeTab === 'categories' ? (
+        {activeTab === 'categories' ? (
           <div className="space-y-5">
             {categoryError && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">

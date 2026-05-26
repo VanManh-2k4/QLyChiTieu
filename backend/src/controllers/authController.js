@@ -11,6 +11,25 @@ export const login = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+export const getMe = asyncHandler(async (req, res) => {
+  const result = await authService.getMe(req.user.id);
+  res.json(result);
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+  const result = await authService.updateProfile(req.user.id, req.body);
+  res.json(result);
+});
+
+export const changePassword = asyncHandler(async (req, res) => {
+  const result = await authService.changePassword(req.user.id, req.body);
+  res.json(result);
+});
+
+export const logout = asyncHandler(async (req, res) => {
+  res.json({ message: 'Logged out successfully' });
+});
+
 export const forgotPassword = asyncHandler(async (req, res) => {
   const result = await authService.forgotPassword(req.body);
   res.json(result);

@@ -36,10 +36,21 @@ export const twoFactorDisableSchema = Joi.object({
   backupCode: Joi.string().trim().allow('', null),
 }).or('code', 'backupCode');
 
-export const profileUpdateSchema = Joi.object({
-  name: Joi.string().min(2).max(100),
+export const updateProfileSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(100),
   email: Joi.string().email().trim().lowercase(),
-  password: Joi.string().min(6).max(128).allow('', null),
+  avatar: Joi.string().allow('', null).max(500),
+}).min(1);
+
+export const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(6).max(128).required(),
+});
+
+export const profileUpdateSchema = Joi.object({
+  name: Joi.string().min(2).max(100).optional(),
+  email: Joi.string().email().trim().lowercase().optional(),
+  avatar: Joi.string().allow('', null).max(500).optional(),
 }).min(1);
 
 export const walletCreateSchema = Joi.object({

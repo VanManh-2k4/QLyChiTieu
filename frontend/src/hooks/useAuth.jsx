@@ -5,25 +5,21 @@ import {
   useMemo,
   useState,
 } from 'react';
+import api from '../services/api.js';
 
 const AuthContext = createContext(null);
-const DEFAULT_USER = {
-  id: 1,
-  name: 'Người dùng',
-  email: 'offline@local',
-  role: 'admin',
-};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem('user');
-      return raw ? JSON.parse(raw) : DEFAULT_USER;
+      return raw ? JSON.parse(raw) : null;
     } catch {
-      return DEFAULT_USER;
+      return null;
     }
   });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (token) localStorage.setItem('token', token);
@@ -35,6 +31,24 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem('user');
   }, [user]);
 
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (token) {
+        try {
+          const { data } = await api.get('/auth/me');
+          setUser(data.user);
+        } catch (error) {
+          // Token is invalid, clear it
+          setToken(null);
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    verifyToken();
+  }, []); // Only run once on mount
+
   const login = (data) => {
     setToken(data.token);
     setUser(data.user);
@@ -42,7 +56,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setToken(null);
-    setUser(DEFAULT_USER);
+    setUser(null);
   };
 
   const value = useMemo(
@@ -51,9 +65,11 @@ export function AuthProvider({ children }) {
       token,
       login,
       logout,
-      isAuthenticated: true,
+      setUser,
+      isAuthenticated: !!token && !!user,
+      loading,
     }),
-    [user, token]
+    [user, token, loading]
   );
 
   return (

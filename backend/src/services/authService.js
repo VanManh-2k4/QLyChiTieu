@@ -45,6 +45,73 @@ export function register({ name, email, password }) {
   return { user: sanitize(user), token };
 }
 
+export function getMe(userId) {
+  const user = userRepository.findById(userId);
+  if (!user || user.isDeleted) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  return { user: sanitize(user) };
+}
+
+export function updateProfile(userId, { name, email, avatar }) {
+  const user = userRepository.findById(userId);
+  if (!user || user.isDeleted) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  
+  if (email && email !== user.email) {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = userRepository.findByEmail(normalizedEmail);
+    if (existing && existing.id !== userId) {
+      const err = new Error('Email đã được sử dụng');
+      err.status = 409;
+      throw err;
+    }
+  }
+  
+  const updated = userRepository.update(userId, { 
+    name: name || user.name, 
+    email: email ? String(email).trim().toLowerCase() : user.email,
+    avatar: avatar || user.avatar 
+  });
+  return { user: sanitize(updated) };
+}
+
+export function changePassword(userId, { currentPassword, newPassword }) {
+  const user = userRepository.findById(userId);
+  if (!user || user.isDeleted) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  
+  if (!currentPassword || !newPassword) {
+    const err = new Error('Vui lòng nhập đầy đủ mật khẩu');
+    err.status = 400;
+    throw err;
+  }
+  
+  if (!user.password) {
+    const err = new Error('Tài khoản chưa có mật khẩu');
+    err.status = 400;
+    throw err;
+  }
+  
+  if (!comparePassword(currentPassword, user.password)) {
+    const err = new Error('Mật khẩu hiện tại không đúng');
+    err.status = 401;
+    throw err;
+  }
+  
+  const hashed = hashPassword(newPassword);
+  userRepository.update(userId, { password: hashed });
+  return { message: 'Đổi mật khẩu thành công' };
+}
+
 export function login({ email, password }) {
   const normalizedEmail = String(email).trim().toLowerCase();
   const user = userRepository.findByEmail(normalizedEmail);
