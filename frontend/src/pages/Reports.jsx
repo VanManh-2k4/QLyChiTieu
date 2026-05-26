@@ -294,7 +294,7 @@ export function Reports() {
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
               <p className="text-sm text-slate-600">Tỷ lệ tiết kiệm TB</p>
               <p className={`mt-2 text-2xl font-bold ${trendData.avgSavingsRate >= 20 ? 'text-emerald-600' : trendData.avgSavingsRate >= 10 ? 'text-amber-600' : 'text-rose-600'}`}>
-                {trendData.avgSavingsRate.toFixed(1)}%
+                {(trendData.avgSavingsRate ?? 0).toFixed(1)}%
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -503,13 +503,13 @@ export function Reports() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">Thay đổi chi tiêu:</span>
                         <span className={`font-semibold ${yoy.expenseChangePercent >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                          {yoy.expenseChangePercent >= 0 ? '+' : ''}{yoy.expenseChangePercent.toFixed(1)}%
+                          {yoy.expenseChangePercent >= 0 ? '+' : ''}{(yoy.expenseChangePercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">Thay đổi thu nhập:</span>
                         <span className={`font-semibold ${yoy.incomeChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {yoy.incomeChangePercent >= 0 ? '+' : ''}{yoy.incomeChangePercent.toFixed(1)}%
+                          {yoy.incomeChangePercent >= 0 ? '+' : ''}{(yoy.incomeChangePercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
                     </div>
@@ -538,7 +538,7 @@ export function Reports() {
                     {cat.trend === 'increasing' && <TrendingUp className="h-4 w-4" />}
                     {cat.trend === 'decreasing' && <TrendingDown className="h-4 w-4" />}
                     <span className="font-semibold capitalize">{cat.trend === 'increasing' ? 'Tăng' : cat.trend === 'decreasing' ? 'Giảm' : 'Ổn định'}</span>
-                    <span className="text-xs">({Math.abs(cat.changePercent).toFixed(1)}%)</span>
+                    <span className="text-xs">({(Math.abs(cat.changePercent) ?? 0).toFixed(1)}%)</span>
                   </div>
                 </div>
               ))}
@@ -777,7 +777,7 @@ export function Reports() {
                   budgetCompareData.healthScore >= 60 ? 'text-amber-600' :
                   'text-rose-600'
                 }`}>
-                  {budgetCompareData.healthScore.toFixed(0)}
+                  {(budgetCompareData.healthScore ?? 0).toFixed(0)}
                 </p>
                 <p className="text-xs text-slate-500">/ 100</p>
               </div>
@@ -805,7 +805,7 @@ export function Reports() {
               <div className="flex-1">
                 <h3 className="font-semibold">Ngân Sách Còn Lại</h3>
                 <p className="text-sm text-slate-600">
-                  Đã sử dụng {budgetCompareData.totalPercentUsed.toFixed(1)}% ngân sách
+                  Đã sử dụng {(budgetCompareData.totalPercentUsed ?? 0).toFixed(1)}% ngân sách
                 </p>
               </div>
               <div className="text-right">
@@ -849,7 +849,7 @@ export function Reports() {
                     <div className="flex-1">
                       <p className="font-semibold text-rose-900">{alert.categoryName}</p>
                       <p className="text-sm text-rose-700">
-                        Vượt {formatVND(alert.overspent)} ({alert.overspentPercent.toFixed(1)}%)
+                        Vượt {formatVND(alert.overspent)} ({(alert.overspentPercent ?? 0).toFixed(1)}%)
                       </p>
                     </div>
                   </div>
@@ -1012,7 +1012,7 @@ export function Reports() {
                     <p className="text-xs text-slate-500">{cat.count} giao dịch</p>
                     {cat.budget > 0 && (
                       <p className={`text-xs ${cat.exceeded ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {cat.exceeded ? 'Vượt ' : 'Còn '}{formatVND(Math.abs(cat.remaining))} ({cat.percentUsed.toFixed(0)}%)
+                        {cat.exceeded ? 'Vượt ' : 'Còn '}{formatVND(Math.abs(cat.remaining))} ({(cat.percentUsed ?? 0).toFixed(0)}%)
                       </p>
                     )}
                   </div>
@@ -1127,13 +1127,13 @@ export function Reports() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-600">Thay đổi thu nhập:</span>
                       <span className={`font-semibold ${monthlySummaryData.momComparison.incomeChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {monthlySummaryData.momComparison.incomeChangePercent >= 0 ? '+' : ''}{monthlySummaryData.momComparison.incomeChangePercent.toFixed(1)}%
+                        {monthlySummaryData.momComparison.incomeChangePercent >= 0 ? '+' : ''}{(monthlySummaryData.momComparison.incomeChangePercent ?? 0).toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-600">Thay đổi chi tiêu:</span>
                       <span className={`font-semibold ${monthlySummaryData.momComparison.expenseChangePercent >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {monthlySummaryData.momComparison.expenseChangePercent >= 0 ? '+' : ''}{monthlySummaryData.momComparison.expenseChangePercent.toFixed(1)}%
+                        {monthlySummaryData.momComparison.expenseChangePercent >= 0 ? '+' : ''}{(monthlySummaryData.momComparison.expenseChangePercent ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -1161,13 +1161,13 @@ export function Reports() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-600">Thay đổi thu nhập:</span>
                       <span className={`font-semibold ${monthlySummaryData.yoyComparison.incomeChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {monthlySummaryData.yoyComparison.incomeChangePercent >= 0 ? '+' : ''}{monthlySummaryData.yoyComparison.incomeChangePercent.toFixed(1)}%
+                        {monthlySummaryData.yoyComparison.incomeChangePercent >= 0 ? '+' : ''}{(monthlySummaryData.yoyComparison.incomeChangePercent ?? 0).toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-600">Thay đổi chi tiêu:</span>
                       <span className={`font-semibold ${monthlySummaryData.yoyComparison.expenseChangePercent >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        {monthlySummaryData.yoyComparison.expenseChangePercent >= 0 ? '+' : ''}{monthlySummaryData.yoyComparison.expenseChangePercent.toFixed(1)}%
+                        {monthlySummaryData.yoyComparison.expenseChangePercent >= 0 ? '+' : ''}{(monthlySummaryData.yoyComparison.expenseChangePercent ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
