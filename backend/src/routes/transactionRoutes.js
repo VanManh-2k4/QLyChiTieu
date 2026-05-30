@@ -19,10 +19,9 @@ router.get(
   validateQuery(transactionQuerySchema),
   transactionController.list
 );
-router.put(
+router.delete(
   '/:id',
-  validateBody(transactionCreateSchema),
-  transactionController.update
+  transactionController.remove
 );
 
 export default router;

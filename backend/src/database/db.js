@@ -198,6 +198,21 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_saving_transactions_goal ON saving_transactions(goalId);
     CREATE INDEX IF NOT EXISTS idx_saving_transactions_user_date ON saving_transactions(userId, date);
 
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('budget_warning', 'budget_exceeded', 'savings_progress', 'savings_completed')),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      isRead INTEGER DEFAULT 0,
+      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (userId) REFERENCES users(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(userId);
+    CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(isRead);
+    CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(createdAt);
+
     CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(userId, date);
     CREATE INDEX IF NOT EXISTS idx_transactions_user_type ON transactions(userId, type);
     CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(userId);

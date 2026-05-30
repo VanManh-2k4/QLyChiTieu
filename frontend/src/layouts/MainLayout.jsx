@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { AccountMenu } from '../components/AccountMenu.jsx';
+import { NotificationBell } from '../components/NotificationBell.jsx';
 
 const navClass = ({ isActive }) =>
   `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
@@ -123,7 +124,10 @@ export function MainLayout() {
                 Quản lý thu chi thông minh
               </p>
             </div>
-            <AccountMenu />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <AccountMenu />
+            </div>
           </div>
         </header>
         <main className="p-4 lg:p-8">

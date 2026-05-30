@@ -308,3 +308,11 @@ export function update(id, { walletId, categoryId, type, amount, note, date }) {
   }
   return db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
 }
+
+export function deleteTransaction(id, userId) {
+  const db = getDb();
+  const r = db
+    .prepare('DELETE FROM transactions WHERE id = ? AND userId = ?')
+    .run(id, userId);
+  return r.changes > 0;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, AlertCircle, Lock, Search, ChevronDown, ChevronUp, Edit } from 'lucide-react';
+import { Plus, AlertCircle, Lock, Search, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import api from '../services/api.js';
 import { Card } from '../components/Card.jsx';
 import {
@@ -89,8 +89,7 @@ export function Transactions() {
   const [err, setErr] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -194,18 +193,23 @@ export function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarMonth]);
 
-  const handleEdit = (tx) => {
-    setEditingTransaction(tx);
-    setIsEditMode(true);
-    setForm({
-      walletId: String(tx.walletId),
-      categoryId: String(tx.categoryId),
-      type: tx.type,
-      amount: formatNumberInput(String(tx.amount)),
-      note: tx.note || '',
-      date: new Date(tx.date).toISOString().slice(0, 16),
-    });
-    setOpen(true);
+  const handleDelete = async (tx) => {
+    setDeleteConfirm(tx);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await api.delete(`/transactions/${deleteConfirm.id}`);
+      setDeleteConfirm(null);
+      const [w, b] = await Promise.all([api.get('/wallets'), api.get('/budgets')]);
+      setWallets(w.data || []);
+      setBudgets(b.data || []);
+      load(page);
+      loadMonthTransactions();
+    } catch (ex) {
+      setErr(ex.response?.data?.message || 'Không thể xóa giao dịch');
+    }
   };
 
   const submit = async (e) => {
@@ -231,31 +235,18 @@ export function Transactions() {
         return;
       }
       
-      if (isEditMode && editingTransaction) {
-        await api.put(`/transactions/${editingTransaction.id}`, {
-          walletId: walletIdToUse,
-          categoryId: Number(form.categoryId),
-          type: form.type,
-          amount,
-          note: form.note || undefined,
-          date: form.date ? new Date(form.date).toISOString() : undefined,
-        });
-      } else {
-        await api.post('/transactions', {
-          walletId: walletIdToUse,
-          categoryId: Number(form.categoryId),
-          type: form.type,
-          amount,
-          note: form.note || undefined,
-          date: form.date ? new Date(form.date).toISOString() : undefined,
-        });
-      }
+      await api.post('/transactions', {
+        walletId: walletIdToUse,
+        categoryId: Number(form.categoryId),
+        type: form.type,
+        amount,
+        note: form.note || undefined,
+        date: form.date ? new Date(form.date).toISOString() : undefined,
+      });
       
       setOpen(false);
       setShowAllCategories(false);
       setCategoryFilter('');
-      setEditingTransaction(null);
-      setIsEditMode(false);
       setForm({
         ...initialTransactionForm,
         date: nowLocalDateTime(),
@@ -269,7 +260,7 @@ export function Transactions() {
       setErr(
         ex.response?.data?.message ||
           ex.response?.data?.details?.join?.(', ') ||
-          (isEditMode ? 'Không thể cập nhật giao dịch' : 'Không thể tạo giao dịch')
+          'Không thể tạo giao dịch'
       );
     }
   };
@@ -421,8 +412,6 @@ export function Transactions() {
           type="button"
           onClick={() => {
             setCategoryFilter('');
-            setEditingTransaction(null);
-            setIsEditMode(false);
             setOpen(true);
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:scale-105 hover:shadow-xl"
@@ -515,11 +504,11 @@ export function Transactions() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => handleEdit(tx)}
-                      className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
-                      title="Sửa giao dịch"
+                      onClick={() => handleDelete(tx)}
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 transition"
+                      title="Xóa giao dịch"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -576,11 +565,11 @@ export function Transactions() {
                   <td className="px-4 py-3">
                     <button
                       type="button"
-                      onClick={() => handleEdit(r)}
-                      className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
-                      title="Sửa giao dịch"
+                      onClick={() => handleDelete(r)}
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600 transition"
+                      title="Xóa giao dịch"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
@@ -622,7 +611,7 @@ export function Transactions() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 p-6 pb-2 shrink-0">
-              {isEditMode ? 'Sửa giao dịch' : 'Thêm giao dịch'}
+              Thêm giao dịch
             </h3>
             <div className="p-6 pt-2 overflow-y-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <style>{`
@@ -786,8 +775,6 @@ export function Transactions() {
                       setErr('');
                       setCategoryFilter('');
                       setShowAllCategories(false);
-                      setEditingTransaction(null);
-                      setIsEditMode(false);
                       setOpen(false);
                     }}
                     className="flex-1 rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
@@ -798,10 +785,63 @@ export function Transactions() {
                     type="submit"
                     className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg hover:scale-105 transition"
                   >
-                    {isEditMode ? 'Cập nhật' : 'Lưu'}
+                    Lưu
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Xóa giao dịch</h3>
+                  <p className="text-sm text-slate-600">
+                    Bạn có chắc chắn muốn xóa giao dịch này?
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-4 rounded-lg bg-slate-50 p-4">
+                <p className="text-sm text-slate-700">
+                  <span className="font-medium">Danh mục:</span> {deleteConfirm.categoryName}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-medium">Số tiền:</span>{' '}
+                  {deleteConfirm.type === 'income' ? '+' : '-'}
+                  {formatVND(deleteConfirm.amount)}
+                </p>
+                <p className="text-sm text-slate-700">
+                  <span className="font-medium">Ngày:</span>{' '}
+                  {new Date(deleteConfirm.date).toLocaleString('vi-VN')}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="flex-1 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700"
+                >
+                  Xóa
+                </button>
+              </div>
             </div>
           </div>
         </div>

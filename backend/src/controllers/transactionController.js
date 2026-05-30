@@ -15,8 +15,12 @@ export const list = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  console.log("TRANSACTION UPDATE - PARAMS:", req.params);
-  console.log("TRANSACTION UPDATE - BODY:", req.body);
-  const data = await transactionService.updateTransaction(req.user.id, req.params.id, req.body);
+  const err = new Error('Chức năng cập nhật giao dịch đã bị vô hiệu hóa');
+  err.status = 403;
+  throw err;
+});
+
+export const remove = asyncHandler(async (req, res) => {
+  const data = await transactionService.deleteTransaction(req.user.id, req.params.id);
   res.json(data);
 });

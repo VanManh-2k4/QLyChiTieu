@@ -3,6 +3,7 @@ import * as walletRepository from '../repositories/walletRepository.js';
 import { goalCreateSchema, goalUpdateSchema, goalTransactionSchema } from '../utils/validators.js';
 import { logActivity } from './historyService.js';
 import { getDb } from '../database/db.js';
+import * as notificationService from './notificationService.js';
 
 export function listGoals(userId) {
   const goals = goalRepository.listForUser(userId);
@@ -192,6 +193,9 @@ export function addFunds(id, userId, transactionData) {
   const stats = calculateGoalStats(updatedGoal);
   const newStatus = determineStatus(updatedGoal, stats);
   goalRepository.update(id, userId, { status: newStatus });
+
+  // Check for progress milestones and create notifications
+  checkGoalProgressNotifications(userId, updatedGoal, stats);
   
   const finalGoal = goalRepository.getById(id, userId);
   return {
@@ -328,4 +332,57 @@ function determineStatus(goal, stats) {
   }
   
   return 'active';
+}
+
+function checkGoalProgressNotifications(userId, goal, stats) {
+  const progress = stats.progress;
+  const milestones = [25, 50, 75, 100];
+  
+  // Check each milestone individually
+  for (const milestone of milestones) {
+    // Check if we've just reached this milestone (within the milestone range)
+    // For example, if milestone is 50%, we want to notify when progress goes from <50% to >=50%
+    const milestoneRange = milestone - 5; // 5% range before the milestone
+    const justReachedMilestone = progress >= milestone && progress < milestone + 5;
+    
+    if (justReachedMilestone) {
+      // Check if we've already sent a notification for this specific milestone
+      const db = getDb();
+      const existingNotification = db.prepare(`
+        SELECT * FROM notifications 
+        WHERE userId = ? 
+        AND type IN ('savings_progress', 'savings_completed')
+        AND message LIKE ?
+        ORDER BY createdAt DESC LIMIT 1
+      `).get(userId, `%chạm mốc ${milestone}%${goal.name}%`);
+
+      // Also check for completion notification
+      const completionNotification = milestone === 100 ? db.prepare(`
+        SELECT * FROM notifications 
+        WHERE userId = ? 
+        AND type = 'savings_completed'
+        AND message LIKE ?
+        ORDER BY createdAt DESC LIMIT 1
+      `).get(userId, `%hoàn thành mục tiêu ${goal.name}%`) : null;
+
+      // Only create notification if we haven't sent one for this milestone yet
+      if (!existingNotification && !completionNotification) {
+        if (milestone === 100) {
+          notificationService.createNotification({
+            userId,
+            type: 'savings_completed',
+            title: 'Chúc mừng!',
+            message: `Bạn đã hoàn thành mục tiêu ${goal.name} (đã đạt ${Math.round(progress)}%)!`,
+          });
+        } else {
+          notificationService.createNotification({
+            userId,
+            type: 'savings_progress',
+            title: 'Tiến độ mục tiêu',
+            message: `Bạn đã chạm mốc ${milestone}% của mục tiêu ${goal.name} (đã đạt ${Math.round(progress)}%).`,
+          });
+        }
+      }
+    }
+  }
 }

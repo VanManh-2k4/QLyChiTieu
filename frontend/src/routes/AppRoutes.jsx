@@ -14,6 +14,7 @@ import { Savings } from '../pages/Savings.jsx';
 import { MenuTools } from '../pages/MenuTools.jsx';
 import { Profile } from '../pages/Profile.jsx';
 import { About } from '../pages/About.jsx';
+import { Notifications } from '../pages/Notifications.jsx';
 
 export function AppRoutes() {
   return (
@@ -39,6 +40,7 @@ export function AppRoutes() {
         <Route path="menu-tools" element={<MenuTools />} />
         <Route path="profile" element={<Profile />} />
         <Route path="about" element={<About />} />
+        <Route path="notifications" element={<Notifications />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

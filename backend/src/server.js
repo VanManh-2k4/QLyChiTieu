@@ -15,6 +15,7 @@ import savingsRoutes from './routes/savingsRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import goalRoutes from './routes/goalRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 
 initDb();
 
@@ -66,6 +67,7 @@ app.use('/api/savings', apiLimiter, savingsRoutes);
 app.use('/api/history', apiLimiter, historyRoutes);
 app.use('/api/reports', apiLimiter, reportRoutes);
 app.use('/api/goals', apiLimiter, goalRoutes);
+app.use('/api/notifications', apiLimiter, notificationRoutes);
 
 app.use(errorHandler);
 
