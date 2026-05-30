@@ -251,7 +251,14 @@ export function Savings() {
       setShowGoalModal(false);
       await loadGoals();
     } catch (ex) {
-      setErr(ex.response?.data?.message || 'Không thể tạo mục tiêu');
+      const errorMessage = ex.response?.data?.message || 'Không thể tạo mục tiêu';
+      // Kiểm tra nếu lỗi liên quan đến ví
+      if (errorMessage.toLowerCase().includes('ví') || errorMessage.toLowerCase().includes('wallet')) {
+        setGoalFormErrors({ walletId: errorMessage });
+        setErr('');
+      } else {
+        setErr(errorMessage);
+      }
       setMsg('');
     }
   };
