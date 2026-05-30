@@ -46,6 +46,19 @@ export function createTransaction(userId, body) {
         err.status = 400;
         throw err;
       }
+      // Kiểm tra số dư ví trước khi chi tiêu
+      const walletBalance = Number(wallet.balance);
+      const expenseAmount = Number(amount);
+      if (walletBalance <= 0) {
+        const err = new Error(`Ví "${wallet.name}" không có tiền. Không thể thực hiện giao dịch chi tiêu.`);
+        err.status = 400;
+        throw err;
+      }
+      if (walletBalance < expenseAmount) {
+        const err = new Error(`Ví "${wallet.name}" chỉ có ${walletBalance.toLocaleString('vi-VN')}đ, không đủ để chi ${expenseAmount.toLocaleString('vi-VN')}đ.`);
+        err.status = 400;
+        throw err;
+      }
       // Trừ tiền từ ví khi chi tiêu
       walletRepository.adjustBalance(walletId, -amount);
     } else {

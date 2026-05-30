@@ -714,6 +714,19 @@ export function Transactions() {
                   <div className="grid grid-cols-3 gap-2">
                     {(showAllCategories ? filteredCategoryCards : filteredCategoryCards.slice(0, 6)).map((c) => {
                       const active = String(form.categoryId) === String(c.id);
+                      // Tìm ngân sách cho category này khi là chi tiêu
+                      const categoryBudget = form.type === 'expense' ? budgets.find(
+                        (b) =>
+                          Number(b.categoryId) === c.id &&
+                          Number(b.month) === txMonth &&
+                          Number(b.year) === txYear
+                      ) : null;
+                      // Tính số tiền đã chi cho category này trong tháng
+                      const categorySpent = form.type === 'expense' ? monthTransactions
+                        .filter((tx) => tx.type === 'expense' && Number(tx.categoryId) === c.id)
+                        .reduce((sum, tx) => sum + Number(tx.amount), 0) : 0;
+                      // Tính số dư còn lại
+                      const remainingBudget = categoryBudget ? Math.max(0, Number(categoryBudget.amount) - categorySpent) : 0;
                       return (
                         <button
                           key={c.id}
@@ -728,6 +741,11 @@ export function Transactions() {
                         >
                           <span className="text-lg leading-none">{CATEGORY_EMOJI[c.name] || '💰'}</span>
                           <span className="mt-1 line-clamp-2 font-medium leading-snug">{c.name}</span>
+                          {active && form.type === 'expense' && categoryBudget && (
+                            <span className="mt-1 text-[10px] text-slate-600">
+                              Còn: {formatVND(remainingBudget)}
+                            </span>
+                          )}
                         </button>
                       );
                     })}

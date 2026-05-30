@@ -37,6 +37,28 @@ export function createGoal(userId, goalData) {
     throw new Error(error.details[0].message);
   }
   
+  // Kiểm tra ví có tồn tại
+  const wallet = walletRepository.findByIdForUser(value.walletId, userId);
+  if (!wallet) {
+    const err = new Error('Ví không tồn tại. Vui lòng chọn ví khác.');
+    err.status = 404;
+    throw err;
+  }
+  
+  // Kiểm tra số dư ví so với mục tiêu
+  const walletBalance = Number(wallet.balance);
+  const targetAmount = Number(value.targetAmount);
+  if (walletBalance <= 0) {
+    const err = new Error(`Ví "${wallet.name}" không có tiền. Không thể tạo mục tiêu tiết kiệm.`);
+    err.status = 400;
+    throw err;
+  }
+  if (walletBalance < targetAmount) {
+    const err = new Error(`Ví "${wallet.name}" chỉ có ${walletBalance.toLocaleString('vi-VN')}đ, không đủ để đặt mục tiêu ${targetAmount.toLocaleString('vi-VN')}đ. Hãy chọn mức mục tiêu thấp hơn.`);
+    err.status = 400;
+    throw err;
+  }
+  
   const goal = goalRepository.create({
     userId,
     ...value
@@ -152,7 +174,9 @@ export function addFunds(id, userId, transactionData) {
     }
     
     if (wallet.balance < value.amount) {
-      throw new Error('Insufficient wallet balance');
+      const err = new Error(`Ví "${wallet.name}" chỉ có ${wallet.balance.toLocaleString('vi-VN')}đ, không đủ để thêm ${value.amount.toLocaleString('vi-VN')}đ vào mục tiêu.`);
+      err.status = 400;
+      throw err;
     }
     
     // Deduct from wallet

@@ -72,6 +72,19 @@ export function create(userId, data) {
     err.status = 404;
     throw err;
   }
+  // Kiểm tra số dư ví
+  const walletBalance = Number(wallet.balance);
+  const budgetAmount = Number(data.amount);
+  if (walletBalance <= 0) {
+    const err = new Error(`Ví "${wallet.name}" không có tiền. Không thể tạo ngân sách.`);
+    err.status = 400;
+    throw err;
+  }
+  if (walletBalance < budgetAmount) {
+    const err = new Error(`Ví "${wallet.name}" chỉ có ${walletBalance.toLocaleString('vi-VN')}đ, không đủ để tạo ngân sách ${budgetAmount.toLocaleString('vi-VN')}đ.`);
+    err.status = 400;
+    throw err;
+  }
   // Mô hình hiện đại: không trừ tiền từ ví khi tạo ngân sách
   try {
     const db = getDb();
