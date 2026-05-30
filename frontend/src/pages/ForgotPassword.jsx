@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api.js';
 import { Landmark, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export function ForgotPassword() {
   const navigate = useNavigate();
+  const emailRef = useRef(null);
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [devToken, setDevToken] = useState('');
+
+  // Focus on email field when there's an error
+  // useEffect(() => {
+  //   if (emailError) {
+  //     emailRef.current?.focus();
+  //   }
+  // }, [emailError]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -94,6 +102,7 @@ export function ForgotPassword() {
             
             <Link
               to="/reset-password"
+              state={{ token: devToken }}
               className="block w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3 text-center font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:scale-[1.02] hover:shadow-xl"
             >
               Đặt lại mật khẩu
@@ -106,6 +115,7 @@ export function ForgotPassword() {
                 Email
               </label>
               <input
+                ref={emailRef}
                 className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
                   emailError 
                     ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 

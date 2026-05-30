@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api.js';
-import { useAuth } from '../hooks/useAuth.jsx';
-import { Landmark } from 'lucide-react';
+import { Landmark, Eye, EyeOff } from 'lucide-react';
 
 export function Register() {
-  const { login } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,6 +14,8 @@ export function Register() {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -50,9 +50,8 @@ export function Register() {
     
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/register', { name, email, password });
-      login(data);
-      navigate('/');
+      await api.post('/auth/register', { name, email, password });
+      navigate('/login', { state: { message: 'Đăng ký thành công! Vui lòng đăng nhập.' } });
     } catch (ex) {
       const message = ex.response?.data?.message || 'Đăng ký thất bại';
       const details = ex.response?.data?.details || [];
@@ -140,22 +139,31 @@ export function Register() {
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Mật khẩu
             </label>
-            <input
-              className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
-                passwordError 
-                  ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
-                  : 'border-slate-200'
-              }`}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setPasswordError('');
-                setConfirmPasswordError('');
-              }}
-              type="password"
-              required
-              minLength={6}
-            />
+            <div className="relative">
+              <input
+                className={`w-full rounded-xl border px-4 py-2.5 pr-10 outline-none ring-emerald-500/20 transition focus:ring-2 ${
+                  passwordError
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-200'
+                }`}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                  setConfirmPasswordError('');
+                }}
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {passwordError && (
               <p className="mt-1 text-xs text-red-600">{passwordError}</p>
             )}
@@ -164,21 +172,30 @@ export function Register() {
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Xác nhận mật khẩu
             </label>
-            <input
-              className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
-                confirmPasswordError 
-                  ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
-                  : 'border-slate-200'
-              }`}
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setConfirmPasswordError('');
-              }}
-              type="password"
-              required
-              minLength={6}
-            />
+            <div className="relative">
+              <input
+                className={`w-full rounded-xl border px-4 py-2.5 pr-10 outline-none ring-emerald-500/20 transition focus:ring-2 ${
+                  confirmPasswordError
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-200'
+                }`}
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  setConfirmPasswordError('');
+                }}
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {confirmPasswordError && (
               <p className="mt-1 text-xs text-red-600">{confirmPasswordError}</p>
             )}

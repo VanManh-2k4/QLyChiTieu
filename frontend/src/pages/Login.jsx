@@ -1,17 +1,43 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../services/api.js';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { Landmark } from 'lucide-react';
+import { Landmark, Eye, EyeOff } from 'lucide-react';
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Check for success message from registration
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the state to prevent showing message again on refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [location.state?.message]);
+
+  // Focus on field with error
+  useEffect(() => {
+    if (passwordError && !emailError) {
+      // Chỉ sai mật khẩu → focus vào ô mật khẩu
+      passwordRef.current?.focus();
+    } else if (emailError && !passwordError) {
+      // Chỉ sai email → focus vào ô email
+      emailRef.current?.focus();
+    }
+    // Sai cả hai → không focus vào ô nào
+  }, [emailError, passwordError]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -25,6 +51,8 @@ export function Login() {
     } catch (ex) {
       const message = ex.response?.data?.message || 'Đăng nhập thất bại';
       const details = ex.response?.data?.details || [];
+      
+      console.log('Login error:', message);
       
       // Set field-specific errors based on error message
       if (message.toLowerCase().includes('email') || message.toLowerCase().includes('tài khoản')) {
@@ -58,12 +86,18 @@ export function Login() {
           <h1 className="text-2xl font-bold text-slate-900">Spendify</h1>
           <p className="mt-1 text-sm text-slate-500">Đăng nhập để tiếp tục</p>
         </div>
+        {successMessage && (
+          <div className="mb-4 rounded-xl bg-emerald-50 p-3 text-center text-sm text-emerald-700 border border-emerald-200">
+            {successMessage}
+          </div>
+        )}
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Email
             </label>
             <input
+              ref={emailRef}
               className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
                 emailError 
                   ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
@@ -85,20 +119,30 @@ export function Login() {
             <label className="mb-1 block text-sm font-medium text-slate-700">
               Mật khẩu
             </label>
-            <input
-              className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
-                passwordError 
-                  ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
-                  : 'border-slate-200'
-              }`}
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setPasswordError('');
-              }}
-              type="password"
-              required
-            />
+            <div className="relative">
+              <input
+                ref={passwordRef}
+                className={`w-full rounded-xl border px-4 py-2.5 pr-10 outline-none ring-emerald-500/20 transition focus:ring-2 ${
+                  passwordError
+                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-200'
+                }`}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                type={showPassword ? 'text' : 'password'}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
             {passwordError && (
               <p className="mt-1 text-xs text-red-600">{passwordError}</p>
             )}

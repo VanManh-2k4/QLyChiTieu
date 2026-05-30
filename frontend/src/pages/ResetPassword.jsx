@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../services/api.js';
-import { Landmark, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Landmark, ArrowLeft, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
 export function ResetPassword() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const tokenRef = useRef(null);
+  const newPasswordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
   const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -13,6 +17,26 @@ export function ResetPassword() {
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Auto-fill token from ForgotPassword page
+  // useEffect(() => {
+  //   if (location.state?.token) {
+  //     setToken(location.state.token);
+  //   }
+  // }, [location.state?.token]);
+
+  // Focus on field with error
+  // useEffect(() => {
+  //   if (tokenError) {
+  //     tokenRef.current?.focus();
+  //   } else if (passwordError) {
+  //     newPasswordRef.current?.focus();
+  //   } else if (confirmPasswordError) {
+  //     confirmPasswordRef.current?.focus();
+  //   }
+  // }, [tokenError, passwordError, confirmPasswordError]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -109,6 +133,7 @@ export function ResetPassword() {
                 Token đặt lại
               </label>
               <input
+                ref={tokenRef}
                 className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
                   tokenError 
                     ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
@@ -132,23 +157,33 @@ export function ResetPassword() {
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 Mật khẩu mới
               </label>
-              <input
-                className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
-                  passwordError 
-                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
-                    : 'border-slate-200'
-                }`}
-                value={newPassword}
-                onChange={(e) => {
-                  setNewPassword(e.target.value);
-                  setPasswordError('');
-                  setConfirmPasswordError('');
-                }}
-                type="password"
-                required
-                minLength={6}
-                placeholder="Ít nhất 6 ký tự"
-              />
+              <div className="relative">
+                <input
+                  ref={newPasswordRef}
+                  className={`w-full rounded-xl border px-4 py-2.5 pr-10 outline-none ring-emerald-500/20 transition focus:ring-2 ${
+                    passwordError
+                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-slate-200'
+                  }`}
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setPasswordError('');
+                    setConfirmPasswordError('');
+                  }}
+                  type={showNewPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  placeholder="Ít nhất 6 ký tự"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               {passwordError && (
                 <p className="mt-1 text-xs text-red-600">{passwordError}</p>
               )}
@@ -158,22 +193,32 @@ export function ResetPassword() {
               <label className="mb-1 block text-sm font-medium text-slate-700">
                 Xác nhận mật khẩu mới
               </label>
-              <input
-                className={`w-full rounded-xl border px-4 py-2.5 outline-none ring-emerald-500/20 transition focus:ring-2 ${
-                  confirmPasswordError 
-                    ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20' 
-                    : 'border-slate-200'
-                }`}
-                value={confirmPassword}
-                onChange={(e) => {
-                  setConfirmPassword(e.target.value);
-                  setConfirmPasswordError('');
-                }}
-                type="password"
-                required
-                minLength={6}
-                placeholder="Nhập lại mật khẩu mới"
-              />
+              <div className="relative">
+                <input
+                  ref={confirmPasswordRef}
+                  className={`w-full rounded-xl border px-4 py-2.5 pr-10 outline-none ring-emerald-500/20 transition focus:ring-2 ${
+                    confirmPasswordError
+                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-slate-200'
+                  }`}
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setConfirmPasswordError('');
+                  }}
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  placeholder="Nhập lại mật khẩu mới"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               {confirmPasswordError && (
                 <p className="mt-1 text-xs text-red-600">{confirmPasswordError}</p>
               )}
@@ -190,7 +235,7 @@ export function ResetPassword() {
         )}
         
         <p className="mt-6 text-center text-sm text-slate-500">
-          Nh lại mật khẩu?{' '}
+          Nhớ lại mật khẩu?{' '}
           <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
             Đăng nhập
           </Link>

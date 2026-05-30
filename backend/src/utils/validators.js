@@ -39,7 +39,7 @@ export const twoFactorDisableSchema = Joi.object({
 export const updateProfileSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100),
   email: Joi.string().email().trim().lowercase(),
-  avatar: Joi.string().allow('', null).max(500),
+  avatar: Joi.string().allow('', null).max(10000000),
 }).min(1);
 
 export const changePasswordSchema = Joi.object({
@@ -50,7 +50,7 @@ export const changePasswordSchema = Joi.object({
 export const profileUpdateSchema = Joi.object({
   name: Joi.string().min(2).max(100).optional(),
   email: Joi.string().email().trim().lowercase().optional(),
-  avatar: Joi.string().allow('', null).max(500).optional(),
+  avatar: Joi.string().allow('', null).max(10000000).optional(),
 }).min(1);
 
 export const walletCreateSchema = Joi.object({

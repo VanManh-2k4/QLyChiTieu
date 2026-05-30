@@ -33,12 +33,20 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const verifyToken = async () => {
+      // Only verify token if we're not on login/register pages
+      const pathname = window.location.pathname;
+      if (pathname === '/login' || pathname === '/register') {
+        setLoading(false);
+        return;
+      }
+
       if (token) {
         try {
           const { data } = await api.get('/auth/me');
           setUser(data.user);
         } catch (error) {
           // Token is invalid, clear it
+          console.log('Token verification failed:', error);
           setToken(null);
           setUser(null);
         }
@@ -46,7 +54,8 @@ export function AuthProvider({ children }) {
       setLoading(false);
     };
 
-    verifyToken();
+    // verifyToken();
+    setLoading(false);
   }, []); // Only run once on mount
 
   const login = (data) => {

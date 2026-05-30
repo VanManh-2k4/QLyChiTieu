@@ -18,13 +18,13 @@ function Gate() {
     );
   }
 
-  // Redirect authenticated users away from login/register pages
-  if ((pathname === '/login' || pathname === '/register') && isAuthenticated) {
+  // Redirect authenticated users away from login/register/forgot-password/reset-password pages
+  if ((pathname === '/login' || pathname === '/register' || pathname === '/forgot-password' || pathname === '/reset-password') && isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  // Redirect unauthenticated users to login (except for login/register pages)
-  if (!isAuthenticated && pathname !== '/login' && pathname !== '/register') {
+  // Redirect unauthenticated users to login (except for login/register/forgot-password/reset-password pages)
+  if (!isAuthenticated && pathname !== '/login' && pathname !== '/register' && pathname !== '/forgot-password' && pathname !== '/reset-password') {
     return <Navigate to="/login" replace />;
   }
 
