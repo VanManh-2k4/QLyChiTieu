@@ -279,3 +279,32 @@ export function listExpensesForBudget(userId, categoryId, month, year) {
     )
     .all(userId, categoryId, month, year);
 }
+
+export function findById(id, userId) {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT t.*, c.name AS categoryName, w.name AS walletName
+       FROM transactions t
+       JOIN categories c ON c.id = t.categoryId
+       JOIN wallets w ON w.id = t.walletId
+       WHERE t.id = ? AND t.userId = ?`
+    )
+    .get(id, userId);
+}
+
+export function update(id, { walletId, categoryId, type, amount, note, date }) {
+  const db = getDb();
+  const d = date ? new Date(date).toISOString() : new Date().toISOString();
+  const r = db
+    .prepare(
+      `UPDATE transactions
+       SET walletId = ?, categoryId = ?, type = ?, amount = ?, note = ?, date = ?
+       WHERE id = ?`
+    )
+    .run(walletId, categoryId, type, amount, note ?? null, d, id);
+  if (r.changes === 0) {
+    return null;
+  }
+  return db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+}

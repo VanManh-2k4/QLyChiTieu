@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, AlertCircle, Lock, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, AlertCircle, Lock, Search, ChevronDown, ChevronUp, Edit } from 'lucide-react';
 import api from '../services/api.js';
 import { Card } from '../components/Card.jsx';
 import {
@@ -89,6 +89,8 @@ export function Transactions() {
   const [err, setErr] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Lock body scroll when modal is open
   useEffect(() => {
@@ -192,6 +194,20 @@ export function Transactions() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarMonth]);
 
+  const handleEdit = (tx) => {
+    setEditingTransaction(tx);
+    setIsEditMode(true);
+    setForm({
+      walletId: String(tx.walletId),
+      categoryId: String(tx.categoryId),
+      type: tx.type,
+      amount: formatNumberInput(String(tx.amount)),
+      note: tx.note || '',
+      date: new Date(tx.date).toISOString().slice(0, 16),
+    });
+    setOpen(true);
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setErr('');
@@ -209,24 +225,37 @@ export function Transactions() {
       return;
     }
     try {
-      // Mô hình hiện đại: không bắt buộc phải có ngân sách
-      // Budget chỉ là kế hoạch chi tiêu để theo dõi
       const walletIdToUse = Number(form.walletId);
       if (!walletIdToUse) {
         setErr('Vui lòng chọn ví cho giao dịch này.');
         return;
       }
-      await api.post('/transactions', {
-        walletId: walletIdToUse,
-        categoryId: Number(form.categoryId),
-        type: form.type,
-        amount,
-        note: form.note || undefined,
-        date: form.date ? new Date(form.date).toISOString() : undefined,
-      });
+      
+      if (isEditMode && editingTransaction) {
+        await api.put(`/transactions/${editingTransaction.id}`, {
+          walletId: walletIdToUse,
+          categoryId: Number(form.categoryId),
+          type: form.type,
+          amount,
+          note: form.note || undefined,
+          date: form.date ? new Date(form.date).toISOString() : undefined,
+        });
+      } else {
+        await api.post('/transactions', {
+          walletId: walletIdToUse,
+          categoryId: Number(form.categoryId),
+          type: form.type,
+          amount,
+          note: form.note || undefined,
+          date: form.date ? new Date(form.date).toISOString() : undefined,
+        });
+      }
+      
       setOpen(false);
       setShowAllCategories(false);
       setCategoryFilter('');
+      setEditingTransaction(null);
+      setIsEditMode(false);
       setForm({
         ...initialTransactionForm,
         date: nowLocalDateTime(),
@@ -235,11 +264,12 @@ export function Transactions() {
       setWallets(w.data || []);
       setBudgets(b.data || []);
       load(page);
+      loadMonthTransactions();
     } catch (ex) {
       setErr(
         ex.response?.data?.message ||
           ex.response?.data?.details?.join?.(', ') ||
-          'Không thể tạo giao dịch'
+          (isEditMode ? 'Không thể cập nhật giao dịch' : 'Không thể tạo giao dịch')
       );
     }
   };
@@ -391,6 +421,8 @@ export function Transactions() {
           type="button"
           onClick={() => {
             setCategoryFilter('');
+            setEditingTransaction(null);
+            setIsEditMode(false);
             setOpen(true);
           }}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition hover:scale-105 hover:shadow-xl"
@@ -470,16 +502,26 @@ export function Transactions() {
                   key={tx.id}
                   className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-800">
                       {tx.categoryName}
                     </p>
                     <p className="truncate text-xs text-slate-500">{tx.note || 'Không ghi chú'}</p>
                   </div>
-                  <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {tx.type === 'income' ? '+' : '-'}
-                    {formatVND(tx.amount)}
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {tx.type === 'income' ? '+' : '-'}
+                      {formatVND(tx.amount)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(tx)}
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                      title="Sửa giao dịch"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
               {selectedDayTransactions.length === 0 && (
@@ -499,6 +541,7 @@ export function Transactions() {
                 <th className="px-4 py-3 font-semibold">Loại</th>
                 <th className="px-4 py-3 font-semibold text-right">Số tiền</th>
                 <th className="px-4 py-3 font-semibold">Ghi chú</th>
+                <th className="px-4 py-3 font-semibold">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -529,6 +572,16 @@ export function Transactions() {
                   </td>
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">
                     {r.note || '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(r)}
+                      className="rounded-lg p-1.5 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                      title="Sửa giao dịch"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
                   </td>
                 </tr>
                 );
@@ -569,7 +622,7 @@ export function Transactions() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-md max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-semibold text-slate-900 mb-4 p-6 pb-2 shrink-0">
-              Thêm giao dịch
+              {isEditMode ? 'Sửa giao dịch' : 'Thêm giao dịch'}
             </h3>
             <div className="p-6 pt-2 overflow-y-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <style>{`
@@ -733,6 +786,8 @@ export function Transactions() {
                       setErr('');
                       setCategoryFilter('');
                       setShowAllCategories(false);
+                      setEditingTransaction(null);
+                      setIsEditMode(false);
                       setOpen(false);
                     }}
                     className="flex-1 rounded-xl border border-slate-200 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-50"
@@ -743,7 +798,7 @@ export function Transactions() {
                     type="submit"
                     className="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg hover:scale-105 transition"
                   >
-                    Lưu
+                    {isEditMode ? 'Cập nhật' : 'Lưu'}
                   </button>
                 </div>
               </form>

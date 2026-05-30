@@ -13,3 +13,10 @@ export const list = asyncHandler(async (req, res) => {
   const data = await transactionService.listTransactions(req.user.id, req.validatedQuery);
   res.json(data);
 });
+
+export const update = asyncHandler(async (req, res) => {
+  console.log("TRANSACTION UPDATE - PARAMS:", req.params);
+  console.log("TRANSACTION UPDATE - BODY:", req.body);
+  const data = await transactionService.updateTransaction(req.user.id, req.params.id, req.body);
+  res.json(data);
+});

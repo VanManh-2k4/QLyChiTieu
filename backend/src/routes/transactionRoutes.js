@@ -19,5 +19,10 @@ router.get(
   validateQuery(transactionQuerySchema),
   transactionController.list
 );
+router.put(
+  '/:id',
+  validateBody(transactionCreateSchema),
+  transactionController.update
+);
 
 export default router;
