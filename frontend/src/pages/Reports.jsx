@@ -14,6 +14,11 @@ import {
   AlertCircle,
   AlertTriangle,
   Wallet,
+  Zap,
+  CheckCircle2,
+  Sparkles,
+  Repeat,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import {
   BarChart,
@@ -637,80 +642,80 @@ export function Reports() {
 
           {/* Suggestions */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="font-semibold">Chi Tiết Gợi Ý</h3>
-                <p className="text-sm text-slate-600">{savingsData.suggestions.length} gợi ý tiết kiệm</p>
+                <h3 className="font-semibold text-lg">Cách Tiết Kiệm</h3>
+                <p className="text-sm text-slate-600">{savingsData.suggestions.filter(s => s.potentialSavings > 0).length} cách tiết kiệm</p>
               </div>
-              <div className="flex gap-2">
-                <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700">
-                  {savingsData.suggestions.filter((s) => s.priority === 'high').length} Ưu tiên
-                </span>
-                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700">
-                  {savingsData.suggestions.filter((s) => s.priority === 'medium').length} Trung bình
-                </span>
+              <div className="text-right">
+                <p className="text-sm text-slate-600">Tổng tiết kiệm tiềm năng</p>
+                <p className="text-2xl font-bold text-emerald-600">{formatVND(savingsData.totalPotentialSavings)}</p>
               </div>
             </div>
-            <div className="space-y-4">
-              {savingsData.suggestions.map((suggestion, index) => (
-                <div key={index} className={`rounded-lg border p-4 ${
-                  suggestion.priority === 'high' ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'
-                }`}>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          suggestion.type === 'high_spending' ? 'bg-indigo-100 text-indigo-700' :
-                          suggestion.type === 'large_transactions' ? 'bg-violet-100 text-violet-700' :
-                          suggestion.type === 'budget_exceeded' ? 'bg-rose-100 text-rose-700' :
-                          suggestion.type === 'subscription' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          {suggestion.type === 'high_spending' ? 'Chi tiêu cao' :
-                           suggestion.type === 'large_transactions' ? 'Giao dịch lớn' :
-                           suggestion.type === 'budget_exceeded' ? 'Vượt ngân sách' :
-                           suggestion.type === 'subscription' ? 'Định kỳ' :
-                           'Khác'}
-                        </span>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          suggestion.priority === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          {suggestion.priority === 'high' ? 'Ưu tiên' : 'Trung bình'}
-                        </span>
-                        <span className="font-semibold">{suggestion.categoryName}</span>
-                      </div>
-                      <p className="text-sm text-slate-600 mb-3">{suggestion.suggestion}</p>
-                      <div className="flex items-center gap-4">
-                        <p className="text-sm font-medium text-emerald-600">
-                          Tiết kiệm tiềm năng: {formatVND(suggestion.potentialSavings)}
-                        </p>
-                        {suggestion.type === 'budget_exceeded' && (
-                          <p className="text-sm text-rose-600">
-                            Vượt: {formatVND(suggestion.overspent)}
-                          </p>
-                        )}
-                        {suggestion.type === 'subscription' && (
-                          <p className="text-sm text-slate-600">
-                            {suggestion.count} lần × {formatVND(suggestion.avgAmount)}
-                          </p>
+            <div className="space-y-3">
+              {savingsData.suggestions
+                .filter(s => s.potentialSavings > 0)
+                .sort((a, b) => b.potentialSavings - a.potentialSavings)
+                .map((suggestion, index) => {
+                  const getActionText = () => {
+                    switch (suggestion.type) {
+                      case 'high_spending':
+                        return `Giảm chi tiêu trong "${suggestion.categoryName}"`;
+                      case 'large_transactions':
+                        return `Xem xét lại các giao dịch lớn trong "${suggestion.categoryName}"`;
+                      case 'budget_exceeded':
+                        return `Cắt giảm chi tiêu "${suggestion.categoryName}" đã vượt ngân sách`;
+                      case 'subscription':
+                        return suggestion.cycleType === 'monthly' ? `Hủy bỏ khoản định kỳ hàng tháng: "${suggestion.note}"` :
+                               suggestion.cycleType === 'weekly' ? `Hủy bỏ khoản định kỳ hàng tuần: "${suggestion.note}"` :
+                               `Hủy bỏ khoản lặp lại: "${suggestion.note}"`;
+                      case 'trend_increasing':
+                        return `Kiểm soát chi tiêu "${suggestion.categoryName}" đang tăng ${suggestion.changePercent.toFixed(1)}%`;
+                      case 'budget_increase':
+                        return `Tăng ngân sách cho "${suggestion.categoryName}"`;
+                      case 'budget_decrease':
+                        return `Giảm ngân sách cho "${suggestion.categoryName}"`;
+                      case 'no_budget':
+                        return `Tạo ngân sách cho "${suggestion.categoryName}"`;
+                      case 'outlier':
+                        return `Kiểm tra ${suggestion.outlierCount} giao dịch bất thường trong "${suggestion.categoryName}"`;
+                      default:
+                        return suggestion.suggestion;
+                    }
+                  };
+
+                  return (
+                    <div key={index} className="rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 hover:shadow-md transition">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 rounded-full bg-emerald-100 p-2">
+                              <Sparkles className="h-5 w-5 text-emerald-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-800">{getActionText()}</p>
+                              <p className="text-sm text-slate-600 mt-1">
+                                Tiết kiệm được: <span className="font-bold text-emerald-600">{formatVND(suggestion.potentialSavings)}</span>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        {suggestion.actionLabel && (
+                          <button 
+                            onClick={() => handleSuggestionAction(suggestion)}
+                            className="ml-4 shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition"
+                          >
+                            {suggestion.actionLabel}
+                          </button>
                         )}
                       </div>
                     </div>
-                    {suggestion.actionLabel && (
-                      <button 
-                        onClick={() => handleSuggestionAction(suggestion)}
-                        className="ml-4 shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition"
-                      >
-                        {suggestion.actionLabel}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {savingsData.suggestions.length === 0 && (
+                  );
+                })}
+              {savingsData.suggestions.filter(s => s.potentialSavings > 0).length === 0 && (
                 <div className="text-center py-8">
-                  <Lightbulb className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                  <p className="text-slate-500">Không có gợi ý tiết kiệm nào cho kỳ này.</p>
+                  <Sparkles className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                  <p className="text-slate-500">Không có cách tiết kiệm nào cho kỳ này.</p>
                   <p className="text-sm text-slate-400 mt-1">Chi tiêu của bạn đang rất tốt!</p>
                 </div>
               )}
