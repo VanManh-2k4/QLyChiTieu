@@ -553,6 +553,30 @@ export function suggestSavings(userId, periodType, period) {
   const categories = categoryRepository.listAll(userId).filter((c) => c.type === 'expense');
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
+  // Get user's average income for personalized thresholds
+  let avgIncome = 0;
+  if (periodType === 'month') {
+    const periods = [];
+    for (let i = 5; i >= 0; i--) {
+      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      periods.push({
+        year: prevDate.getFullYear(),
+        month: prevDate.getMonth() + 1,
+      });
+    }
+    
+    try {
+      const trendAnalysis = analyzeTrends(userId, 'month', periods);
+      avgIncome = trendAnalysis.avgIncome || 0;
+    } catch (error) {
+      console.error('Failed to get average income:', error);
+    }
+  }
+
+  // Calculate personalized thresholds based on income
+  const highSpendingThreshold = avgIncome > 0 ? avgIncome * 0.15 : report.totalExpense * 0.2; // 15% of income or 20% of total expense
+  const largeTransactionThreshold = avgIncome > 0 ? avgIncome * 0.05 : 1000000; // 5% of income or 1M fixed
+
   const suggestions = [];
 
   report.categoryBreakdown.forEach((cat) => {
@@ -562,8 +586,9 @@ export function suggestSavings(userId, periodType, period) {
     const percentage = cat.percentage;
     const avgTransaction = cat.count > 0 ? cat.amount / cat.count : 0;
 
-    // High spending category suggestion
-    if (percentage > 20) {
+    // High spending category suggestion (personalized)
+    if (cat.amount > highSpendingThreshold) {
+      const thresholdPercent = avgIncome > 0 ? ((cat.amount / avgIncome) * 100).toFixed(1) : percentage.toFixed(1);
       suggestions.push({
         type: 'high_spending',
         priority: 'high',
@@ -571,22 +596,26 @@ export function suggestSavings(userId, periodType, period) {
         categoryName: cat.categoryName,
         currentAmount: cat.amount,
         percentage,
-        suggestion: `Danh mục "${cat.categoryName}" chiếm ${percentage.toFixed(1)}% tổng chi tiêu. Cân nhắc giảm bớt các khoản chi tiêu không cần thiết trong danh mục này.`,
+        suggestion: avgIncome > 0 
+          ? `Danh mục "${cat.categoryName}" chiếm ${thresholdPercent}% thu nhập trung bình. Cân nhắc giảm bớt các khoản chi tiêu không cần thiết trong danh mục này.`
+          : `Danh mục "${cat.categoryName}" chiếm ${percentage.toFixed(1)}% tổng chi tiêu. Cân nhắc giảm bớt các khoản chi tiêu không cần thiết trong danh mục này.`,
         potentialSavings: cat.amount * 0.15,
         action: 'review_category',
         actionLabel: 'Xem chi tiết danh mục',
       });
     }
 
-    // Large transactions suggestion
-    if (avgTransaction > 1000000) {
+    // Large transactions suggestion (personalized)
+    if (avgTransaction > largeTransactionThreshold) {
       suggestions.push({
         type: 'large_transactions',
         priority: 'medium',
         categoryId: cat.categoryId,
         categoryName: cat.categoryName,
         avgTransaction,
-        suggestion: `Trung bình mỗi giao dịch trong "${cat.categoryName}" là ${avgTransaction.toLocaleString('vi-VN')}đ. Hãy xem xét lại các khoản chi tiêu lớn này.`,
+        suggestion: avgIncome > 0
+          ? `Trung bình mỗi giao dịch trong "${cat.categoryName}" là ${avgTransaction.toLocaleString('vi-VN')}đ (${((avgTransaction / avgIncome) * 100).toFixed(1)}% thu nhập). Hãy xem xét lại các khoản chi tiêu lớn này.`
+          : `Trung bình mỗi giao dịch trong "${cat.categoryName}" là ${avgTransaction.toLocaleString('vi-VN')}đ. Hãy xem xét lại các khoản chi tiêu lớn này.`,
         potentialSavings: avgTransaction * 0.1 * cat.count,
         action: 'review_transactions',
         actionLabel: 'Xem giao dịch',
@@ -618,11 +647,287 @@ export function suggestSavings(userId, periodType, period) {
         });
       }
     });
+
+    // Budget optimization suggestions - analyze last 6 months
+    const budgetOptimizationSuggestions = [];
+    const allTransactions = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+    
+    for (let i = 0; i < 6; i++) {
+      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      const prevYear = prevDate.getFullYear();
+      const prevMonth = prevDate.getMonth() + 1;
+
+      const prevBudgets = budgetRepository.listByUserMonthYear(userId, prevMonth, prevYear);
+      const prevBudgetMap = new Map(prevBudgets.map((b) => [b.categoryId, b]));
+
+      const prevFiltered = allTransactions.rows.filter((t) => {
+        const date = new Date(t.date);
+        return t.type === 'expense' && date.getFullYear() === prevYear && date.getMonth() + 1 === prevMonth;
+      });
+
+      const prevByCategory = {};
+      prevFiltered.forEach((t) => {
+        if (!prevByCategory[t.categoryId]) {
+          prevByCategory[t.categoryId] = { amount: 0, count: 0 };
+        }
+        prevByCategory[t.categoryId].amount += Number(t.amount);
+        prevByCategory[t.categoryId].count += 1;
+      });
+
+      Object.entries(prevByCategory).forEach(([catId, data]) => {
+        const prevBudget = prevBudgetMap.get(Number(catId));
+        if (prevBudget) {
+          const budgetAmount = Number(prevBudget.amount);
+          const spentAmount = data.amount;
+          const overspentCount = spentAmount > budgetAmount ? 1 : 0;
+          
+          if (!budgetOptimizationSuggestions[catId]) {
+            budgetOptimizationSuggestions[catId] = {
+              categoryId: Number(catId),
+              categoryName: categoryMap.get(Number(catId))?.name || 'Unknown',
+              overspentMonths: 0,
+              underutilizedMonths: 0,
+              totalBudget: 0,
+              totalSpent: 0,
+            };
+          }
+          
+          budgetOptimizationSuggestions[catId].overspentMonths += overspentCount;
+          if (spentAmount < budgetAmount * 0.5) {
+            budgetOptimizationSuggestions[catId].underutilizedMonths += 1;
+          }
+          budgetOptimizationSuggestions[catId].totalBudget += budgetAmount;
+          budgetOptimizationSuggestions[catId].totalSpent += spentAmount;
+        }
+      });
+    }
+
+    // Generate budget optimization suggestions
+    Object.values(budgetOptimizationSuggestions).forEach((opt) => {
+      // Frequently overspent categories - suggest increasing budget
+      if (opt.overspentMonths >= 4) {
+        const avgOverspend = Math.max(0, (opt.totalSpent - opt.totalBudget) / 6);
+        suggestions.push({
+          type: 'budget_increase',
+          priority: 'medium',
+          categoryId: opt.categoryId,
+          categoryName: opt.categoryName,
+          suggestion: `Danh mục "${opt.categoryName}" thường xuyên vượt ngân sách (${opt.overspentMonths}/6 tháng). Nên tăng ngân sách thêm ${formatVND(avgOverspend)}.`,
+          potentialSavings: avgOverspend * 0.3,
+          action: 'adjust_budget',
+          actionLabel: 'Điều chỉnh ngân sách',
+        });
+      }
+
+      // Underutilized budget categories - suggest decreasing budget
+      if (opt.underutilizedMonths >= 4 && opt.overspentMonths === 0) {
+        const avgUnderutilized = (opt.totalBudget - opt.totalSpent) / 6;
+        suggestions.push({
+          type: 'budget_decrease',
+          priority: 'low',
+          categoryId: opt.categoryId,
+          categoryName: opt.categoryName,
+          suggestion: `Danh mục "${opt.categoryName}" thường xuyên dư ngân sách (${opt.underutilizedMonths}/6 tháng). Có thể giảm ngân sách ${formatVND(avgUnderutilized)} để dùng cho mục khác.`,
+          potentialSavings: avgUnderutilized * 0.5,
+          action: 'adjust_budget',
+          actionLabel: 'Điều chỉnh ngân sách',
+        });
+      }
+    });
+
+    // Categories with no budget but high spending
+    report.categoryBreakdown.forEach((cat) => {
+      const hasBudget = budgetMap.has(cat.categoryId);
+      if (!hasBudget && cat.amount > highSpendingThreshold) {
+        suggestions.push({
+          type: 'no_budget',
+          priority: 'high',
+          categoryId: cat.categoryId,
+          categoryName: cat.categoryName,
+          currentAmount: cat.amount,
+          suggestion: `Danh mục "${cat.categoryName}" không có ngân sách nhưng chi tiêu ${formatVND(cat.amount)}. Nên thiết lập ngân sách để kiểm soát chi tiêu.`,
+          potentialSavings: cat.amount * 0.1,
+          action: 'create_budget',
+          actionLabel: 'Tạo ngân sách',
+        });
+      }
+    });
   }
 
-  // Detect potential subscriptions (recurring transactions)
-  const { rows } = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
-  const filtered = rows.filter((t) => {
+  // Add trend-based suggestions using analyzeTrends
+  if (periodType === 'month') {
+    const periods = [];
+    for (let i = 5; i >= 0; i--) {
+      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      periods.push({
+        year: prevDate.getFullYear(),
+        month: prevDate.getMonth() + 1,
+      });
+    }
+    
+    try {
+      const trendAnalysis = analyzeTrends(userId, 'month', periods);
+      
+      // Find categories with strong increasing trend (>20% increase)
+      const increasingCategories = trendAnalysis.categoryTrendAnalysis
+        .filter((cat) => cat.trend === 'increasing' && cat.changePercent > 20)
+        .sort((a, b) => b.changePercent - a.changePercent)
+        .slice(0, 3);
+
+      increasingCategories.forEach((cat) => {
+        const currentCat = report.categoryBreakdown.find((c) => c.categoryId === cat.categoryId);
+        if (currentCat) {
+          suggestions.push({
+            type: 'trend_increasing',
+            priority: 'high',
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            changePercent: cat.changePercent,
+            currentAmount: currentCat.amount,
+            suggestion: `Danh mục "${cat.categoryName}" đang tăng mạnh ${cat.changePercent.toFixed(1)}% trong 6 tháng qua. Cần kiểm soát chi tiêu này ngay.`,
+            potentialSavings: currentCat.amount * 0.2,
+            action: 'review_category',
+            actionLabel: 'Xem xu hướng',
+          });
+        }
+      });
+
+      // Find categories with strong decreasing trend (>15% decrease) - positive reinforcement
+      const decreasingCategories = trendAnalysis.categoryTrendAnalysis
+        .filter((cat) => cat.trend === 'decreasing' && cat.changePercent < -15)
+        .sort((a, b) => a.changePercent - b.changePercent)
+        .slice(0, 2);
+
+      decreasingCategories.forEach((cat) => {
+        const currentCat = report.categoryBreakdown.find((c) => c.categoryId === cat.categoryId);
+        if (currentCat) {
+          suggestions.push({
+            type: 'trend_decreasing',
+            priority: 'low',
+            categoryId: cat.categoryId,
+            categoryName: cat.categoryName,
+            changePercent: cat.changePercent,
+            currentAmount: currentCat.amount,
+            suggestion: `Tuyệt vời! Danh mục "${cat.categoryName}" đã giảm ${Math.abs(cat.changePercent).toFixed(1)}% trong 6 tháng qua. Tiếp tục duy trì.`,
+            potentialSavings: 0,
+            action: null,
+            actionLabel: null,
+          });
+        }
+      });
+    } catch (error) {
+      // If trend analysis fails, continue without trend suggestions
+      console.error('Trend analysis failed:', error);
+    }
+  }
+
+  // Detect potential subscriptions (recurring transactions) with cycle analysis
+  const allTransactions = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+  
+  // Get transactions from last 6 months for better cycle detection
+  const sixMonthsAgo = new Date(period.year, period.month - 7, 1);
+  const filteredForSubscription = allTransactions.rows.filter((t) => {
+    const date = new Date(t.date);
+    return t.type === 'expense' && date >= sixMonthsAgo;
+  });
+
+  // Group by note and analyze cycle
+  const byNote = {};
+  filteredForSubscription.forEach((t) => {
+    const note = t.note || t.description || '';
+    if (note.length > 0) {
+      if (!byNote[note]) {
+        byNote[note] = { 
+          count: 0, 
+          amount: 0, 
+          categoryId: t.categoryId,
+          dates: [],
+          amounts: []
+        };
+      }
+      byNote[note].count += 1;
+      byNote[note].amount += Number(t.amount);
+      byNote[note].dates.push(new Date(t.date));
+      byNote[note].amounts.push(Number(t.amount));
+    }
+  });
+
+  Object.entries(byNote).forEach(([note, data]) => {
+    if (data.count >= 2) {
+      const categoryInfo = categoryMap.get(data.categoryId);
+      if (categoryInfo) {
+        // Analyze cycle pattern
+        const sortedDates = data.dates.sort((a, b) => a - b);
+        const intervals = [];
+        
+        for (let i = 1; i < sortedDates.length; i++) {
+          const diffDays = Math.round((sortedDates[i] - sortedDates[i - 1]) / (1000 * 60 * 60 * 24));
+          intervals.push(diffDays);
+        }
+
+        // Determine cycle type based on intervals
+        let cycleType = 'unknown';
+        let cycleDescription = 'không xác định';
+        
+        if (intervals.length > 0) {
+          const avgInterval = intervals.reduce((sum, val) => sum + val, 0) / intervals.length;
+          const variance = intervals.reduce((sum, val) => sum + Math.pow(val - avgInterval, 2), 0) / intervals.length;
+          const stdDev = Math.sqrt(variance);
+          const consistency = stdDev / avgInterval; // Lower is more consistent
+
+          if (consistency < 0.3) { // Very consistent
+            if (avgInterval >= 25 && avgInterval <= 35) {
+              cycleType = 'monthly';
+              cycleDescription = 'hàng tháng';
+            } else if (avgInterval >= 6 && avgInterval <= 8) {
+              cycleType = 'weekly';
+              cycleDescription = 'hàng tuần';
+            } else if (avgInterval >= 85 && avgInterval <= 95) {
+              cycleType = 'quarterly';
+              cycleDescription = 'hàng quý';
+            } else if (avgInterval >= 360 && avgInterval <= 370) {
+              cycleType = 'yearly';
+              cycleDescription = 'hàng năm';
+            } else {
+              cycleType = 'regular';
+              cycleDescription = `định kỳ (${Math.round(avgInterval)} ngày)`;
+            }
+          } else {
+            cycleType = 'irregular';
+            cycleDescription = 'không đều đặn';
+          }
+        }
+
+        const avgAmount = data.amount / data.count;
+        const amountConsistency = data.amounts.length > 1 
+          ? (Math.min(...data.amounts) / Math.max(...data.amounts)) > 0.8 
+          : true;
+
+        suggestions.push({
+          type: 'subscription',
+          priority: cycleType !== 'unknown' && cycleType !== 'irregular' ? 'high' : 'medium',
+          categoryId: data.categoryId,
+          categoryName: categoryInfo.name,
+          note,
+          count: data.count,
+          avgAmount,
+          totalAmount: data.amount,
+          cycleType,
+          cycleDescription,
+          isAmountConsistent: amountConsistency,
+          suggestion: cycleType !== 'unknown' && cycleType !== 'irregular'
+            ? `Phát hiện khoản định kỳ ${cycleDescription}: "${note}" (${data.count} lần, ${formatVND(avgAmount)}/lần). Cân nhắc hủy bỏ nếu không cần thiết.`
+            : `Phát hiện khoản lặp lại có thể: "${note}" (${data.count} lần, trung bình ${formatVND(avgAmount)}/lần). Cân nhắc hủy bỏ nếu không cần thiết.`,
+          potentialSavings: cycleType !== 'unknown' && cycleType !== 'irregular' ? data.amount * 0.4 : data.amount * 0.3,
+          action: 'review_subscription',
+          actionLabel: 'Xem chi tiết',
+        });
+      }
+    }
+  });
+
+  // Detect outlier transactions (unusual spending)
+  const currentPeriodTransactions = allTransactions.rows.filter((t) => {
     const date = new Date(t.date);
     if (periodType === 'month') {
       return t.type === 'expense' && date.getFullYear() === period.year && date.getMonth() + 1 === period.month;
@@ -637,40 +942,36 @@ export function suggestSavings(userId, periodType, period) {
     return false;
   });
 
-  // Group by note to find potential subscriptions
-  const byNote = {};
-  filtered.forEach((t) => {
-    const note = t.note || t.description || '';
-    if (note.length > 0) {
-      if (!byNote[note]) {
-        byNote[note] = { count: 0, amount: 0, categoryId: t.categoryId };
-      }
-      byNote[note].count += 1;
-      byNote[note].amount += Number(t.amount);
-    }
-  });
+  // Calculate statistics for outlier detection
+  if (currentPeriodTransactions.length > 0) {
+    const amounts = currentPeriodTransactions.map((t) => Number(t.amount));
+    const mean = amounts.reduce((sum, val) => sum + val, 0) / amounts.length;
+    const variance = amounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / amounts.length;
+    const stdDev = Math.sqrt(variance);
+    const outlierThreshold = mean + 3 * stdDev; // 3-sigma rule
 
-  Object.entries(byNote).forEach(([note, data]) => {
-    if (data.count >= 2) {
-      const categoryInfo = categoryMap.get(data.categoryId);
-      if (categoryInfo) {
-        suggestions.push({
-          type: 'subscription',
-          priority: 'medium',
-          categoryId: data.categoryId,
-          categoryName: categoryInfo.name,
-          note,
-          count: data.count,
-          avgAmount: data.amount / data.count,
-          totalAmount: data.amount,
-          suggestion: `Phát hiện khoản định kỳ có thể: "${note}" (${data.count} lần, trung bình ${formatVND(data.amount / data.count)}/lần). Cân nhắc hủy bỏ nếu không cần thiết.`,
-          potentialSavings: data.amount * 0.3,
-          action: 'review_subscription',
-          actionLabel: 'Xem chi tiết',
-        });
-      }
+    // Find outlier transactions
+    const outliers = currentPeriodTransactions.filter((t) => Number(t.amount) > outlierThreshold);
+    
+    if (outliers.length > 0) {
+      const categoryInfo = categoryMap.get(outliers[0].categoryId);
+      const totalOutlierAmount = outliers.reduce((sum, t) => sum + Number(t.amount), 0);
+      
+      suggestions.push({
+        type: 'outlier',
+        priority: 'high',
+        categoryId: outliers[0].categoryId,
+        categoryName: categoryInfo?.name || 'Unknown',
+        outlierCount: outliers.length,
+        totalOutlierAmount,
+        avgOutlierAmount: totalOutlierAmount / outliers.length,
+        suggestion: `Phát hiện ${outliers.length} giao dịch bất thường lớn hơn mức trung bình (trung bình ${formatVND(totalOutlierAmount / outliers.length)}). Có thể là lỗi hoặc chi tiêu không cần thiết.`,
+        potentialSavings: totalOutlierAmount * 0.5,
+        action: 'review_transactions',
+        actionLabel: 'Xem giao dịch',
+      });
     }
-  });
+  }
 
   // Pattern-based suggestions
   const sortedSuggestions = suggestions.sort((a, b) => b.potentialSavings - a.potentialSavings);

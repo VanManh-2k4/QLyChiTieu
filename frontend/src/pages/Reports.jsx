@@ -668,9 +668,14 @@ export function Reports() {
                       case 'subscription':
                         return suggestion.cycleType === 'monthly' ? `Hủy bỏ khoản định kỳ hàng tháng: "${suggestion.note}"` :
                                suggestion.cycleType === 'weekly' ? `Hủy bỏ khoản định kỳ hàng tuần: "${suggestion.note}"` :
+                               suggestion.cycleType === 'quarterly' ? `Hủy bỏ khoản định kỳ hàng quý: "${suggestion.note}"` :
+                               suggestion.cycleType === 'yearly' ? `Hủy bỏ khoản định kỳ hàng năm: "${suggestion.note}"` :
+                               suggestion.cycleType === 'regular' ? `Hủy bỏ khoản định kỳ (${suggestion.cycleDescription}): "${suggestion.note}"` :
                                `Hủy bỏ khoản lặp lại: "${suggestion.note}"`;
                       case 'trend_increasing':
                         return `Kiểm soát chi tiêu "${suggestion.categoryName}" đang tăng ${suggestion.changePercent.toFixed(1)}%`;
+                      case 'trend_decreasing':
+                        return `Tiếp tục duy trì "${suggestion.categoryName}" đang giảm ${Math.abs(suggestion.changePercent).toFixed(1)}%`;
                       case 'budget_increase':
                         return `Tăng ngân sách cho "${suggestion.categoryName}"`;
                       case 'budget_decrease':
