@@ -148,7 +148,25 @@
 - **Tab Tổng kết**: Deep dive breakdown, Heatmap chi tiêu theo ngày, Transaction list, MoM/YoY comparison
 - **Tab Ngân sách**: Health score, Overspending alerts, Budget history (6 tháng), Performance insights
 - **Tab Mục tiêu**: Progress chart theo thời gian, Estimated completion date, Insights & recommendations
-- **Tab Gợi ý tiết kiệm**: Actionable suggestions, Category detail modal
+- **Tab Gợi ý tiết kiệm**: 
+  - Cá nhân hóa ngưỡng dựa trên thu nhập trung bình
+  - Phân tích xu hướng chi tiêu (tăng/giảm)
+  - Cải thiện phát hiện subscription với phân tích chu kỳ
+  - Phát hiện giao dịch bất thường (outlier detection)
+  - Tối ưu hóa ngân sách dựa trên lịch sử 6 tháng
+  - Actionable suggestions với priority sorting
+
+### 🔔 Hệ Thống Thông Báo
+- Thông báo tự động khi vượt ngân sách (budget_exceeded)
+- Thông báo cảnh báo ngân sách (budget_warning)
+- Thông báo tiến độ tiết kiệm (savings_progress)
+- Thông báo hoàn thành mục tiêu (savings_completed)
+- Chuông thông báo với dropdown preview
+- Polling tự động cập nhật số lượng chưa đọc
+- Filter thông báo theo loại (tất cả, chưa đọc, ngân sách, tiết kiệm)
+- Đánh dấu đã đọc (từng cái hoặc tất cả)
+- Xóa thông báo (từng cái hoặc tất cả)
+- Modal chi tiết thông báo với progress bar
 
 ### 🎨 Theme System
 - 4 themes hiện đại: Indigo, Emerald, Sunset, Slate Dark
@@ -221,7 +239,8 @@ QLyChiTieu/
 │   │   │   ├── goalRepository.js
 │   │   │   ├── historyRepository.js
 │   │   │   ├── backupCodeRepository.js
-│   │   │   └── passwordResetRepository.js
+│   │   │   ├── passwordResetRepository.js
+│   │   │   └── notificationRepository.js
 │   │   ├── routes/                   # API routes
 │   │   │   ├── authRoutes.js
 │   │   │   ├── walletRoutes.js
@@ -232,7 +251,8 @@ QLyChiTieu/
 │   │   │   ├── goalRoutes.js
 │   │   │   ├── dashboardRoutes.js
 │   │   │   ├── historyRoutes.js
-│   │   │   └── reportRoutes.js
+│   │   │   ├── reportRoutes.js
+│   │   │   └── notificationRoutes.js
 │   │   ├── services/                 # Business logic layer
 │   │   │   ├── authService.js
 │   │   │   ├── walletService.js
@@ -243,7 +263,8 @@ QLyChiTieu/
 │   │   │   ├── goalService.js
 │   │   │   ├── dashboardService.js
 │   │   │   ├── historyService.js
-│   │   │   └── reportService.js
+│   │   │   ├── reportService.js
+│   │   │   └── notificationService.js
 │   │   ├── controllers/              # Request handlers
 │   │   │   ├── authController.js
 │   │   │   ├── walletController.js
@@ -254,7 +275,8 @@ QLyChiTieu/
 │   │   │   ├── goalController.js
 │   │   │   ├── dashboardController.js
 │   │   │   ├── historyController.js
-│   │   │   └── reportController.js
+│   │   │   ├── reportController.js
+│   │   │   └── notificationController.js
 │   │   └── utils/                    # Utility functions
 │   │       ├── asyncHandler.js       # Async wrapper
 │   │       ├── crypto.js             # Encryption, hashing
@@ -277,6 +299,7 @@ QLyChiTieu/
 │   │   │   ├── Modal.jsx
 │   │   │   ├── ProtectedRoute.jsx
 │   │   │   ├── Toast.jsx
+│   │   │   ├── NotificationBell.jsx
 │   │   │   └── export/
 │   │   │       ├── ExportFilters.jsx
 │   │   │       └── ExportModal.jsx
@@ -296,11 +319,13 @@ QLyChiTieu/
 │   │   │   ├── Savings.jsx
 │   │   │   ├── Profile.jsx
 │   │   │   ├── About.jsx
-│   │   │   └── MenuTools.jsx
+│   │   │   ├── MenuTools.jsx
+│   │   │   └── Notifications.jsx
 │   │   ├── routes/                  # React Router configuration
 │   │   │   └── AppRoutes.jsx
 │   │   ├── services/                # API services
 │   │   │   ├── api.js
+│   │   │   ├── notification.service.js
 │   │   │   └── export/
 │   │   │       ├── export.service.js
 │   │   │       ├── export.utils.js
@@ -393,19 +418,40 @@ Dự án sử dụng **SQLite** với `better-sqlite3` - không cần cài đặ
 Database sẽ tự động tạo tại đường dẫn được cấu hình trong `.env` (mặc định: `backend/src/database/db.sqlite`).
 
 **Schema database bao gồm:**
-- `users` - Người dùng
-- `wallets` - Ví
-- `categories` - Danh mục
-- `transactions` - Giao dịch
-- `budgets` - Ngân sách
-- `savings_accounts` - Quỹ tiết kiệm
-- `savings_transfers` - Chuyển tiết kiệm
-- `saving_goals` - Mục tiêu tiết kiệm
-- `saving_transactions` - Giao dịch mục tiêu
-- `activity_logs` - Lịch sử hoạt động
-- `monthly_rollovers` - Cuối tháng
-- `password_resets` - Reset mật khẩu
-- `backup_codes` - Mã backup 2FA
+- `users` - Người dùng (id, name, email, password, role, avatar, 2FA settings)
+- `wallets` - Ví (id, userId, name, balance, isDeleted)
+- `categories` - Danh mục (id, userId, name, type: income/expense)
+- `transactions` - Giao dịch (id, userId, walletId, categoryId, type, amount, note, date)
+- `budgets` - Ngân sách (id, userId, categoryId, walletId, amount, month, year)
+- `savings_accounts` - Quỹ tiết kiệm (id, userId, name, balance, isDeleted)
+- `savings_transfers` - Chuyển tiết kiệm (id, userId, walletId, savingsId, direction, amount, note, date)
+- `saving_goals` - Mục tiêu tiết kiệm (id, userId, walletId, name, targetAmount, currentAmount, targetDate, status)
+- `saving_transactions` - Giao dịch mục tiêu (id, goalId, userId, walletId, amount, type, note, date)
+- `activity_logs` - Lịch sử hoạt động (id, userId, actionType, entityType, entityId, title, details, amount, occurredAt)
+- `monthly_rollovers` - Cuối tháng (id, userId, year, month, rolledAt)
+- `password_resets` - Reset mật khẩu (id, userId, tokenHash, expiresAt, usedAt)
+- `user_backup_codes` - Mã backup 2FA (id, userId, codeHash, createdAt, usedAt)
+- `notifications` - Thông báo (id, userId, type, title, message, isRead, createdAt)
+
+**Indexes:**
+- `idx_users_email_nocase`: UNIQUE INDEX trên email (case-insensitive)
+- `idx_wallets_user`: INDEX trên userId
+- `idx_transactions_user_date`: INDEX trên (userId, date)
+- `idx_transactions_user_type`: INDEX trên (userId, type)
+- `idx_savings_user`: INDEX trên userId
+- `idx_savings_transfers_user_date`: INDEX trên (userId, date)
+- `idx_saving_goals_user`: INDEX trên userId
+- `idx_saving_goals_status`: INDEX trên status
+- `idx_saving_transactions_goal`: INDEX trên goalId
+- `idx_saving_transactions_user_date`: INDEX trên (userId, date)
+- `idx_activity_logs_user_date`: INDEX trên (userId, occurredAt)
+- `idx_monthly_rollovers_user`: INDEX trên userId
+- `idx_password_resets_user`: INDEX trên userId
+- `idx_password_resets_token`: INDEX trên tokenHash
+- `idx_backup_codes_user`: INDEX trên userId
+- `idx_notifications_user`: INDEX trên userId
+- `idx_notifications_read`: INDEX trên isRead
+- `idx_notifications_created`: INDEX trên createdAt
 
 ---
 
@@ -556,11 +602,27 @@ Authorization: Bearer <token>
 - `GET /dashboard/budget-insights` - Gợi ý ngân sách
 
 #### Reports
-- `GET /reports/trends` - Phân tích xu hướng (Budget vs Actual, Seasonality, YoY)
-- `GET /reports/summary` - Tổng kết chi tiết (Deep dive, Heatmap, Transaction list)
-- `GET /reports/budget` - Phân tích ngân sách (Health score, History, Insights)
-- `GET /reports/goals` - Phân tích mục tiêu (Progress, Completion date, Recommendations)
-- `GET /reports/savings-suggestions` - Gợi ý tiết kiệm (Actionable suggestions)
+- `GET /reports/weekly` - Báo cáo tuần
+- `GET /reports/monthly` - Báo cáo tháng
+- `GET /reports/quarterly` - Báo cáo quý
+- `GET /reports/yearly` - Báo cáo năm
+- `POST /reports/compare` - So sánh các kỳ
+- `POST /reports/trends` - Phân tích xu hướng (Budget vs Actual, Seasonality, YoY)
+- `POST /reports/savings` - Gợi ý tiết kiệm (Actionable suggestions với cá nhân hóa)
+- `GET /reports/budget-compare` - So sánh với ngân sách
+- `GET /reports/monthly-summary` - Tổng kết tháng
+- `GET /reports/spending-patterns` - Phân tích mẫu chi tiêu
+- `GET /reports/goals` - Theo dõi mục tiêu
+- `GET /reports/anomalies` - Phát hiện bất thường
+- `GET /reports/goal-analysis` - Phân tích mục tiêu
+
+#### Notifications
+- `GET /notifications` - Lấy danh sách thông báo (có filter type, isRead, pagination)
+- `GET /notifications/unread-count` - Lấy số lượng thông báo chưa đọc
+- `PUT /notifications/:id/read` - Đánh dấu thông báo đã đọc
+- `PUT /notifications/mark-all-read` - Đánh dấu tất cả đã đọc
+- `DELETE /notifications/:id` - Xóa thông báo
+- `DELETE /notifications` - Xóa tất cả thông báo
 
 #### History
 - `GET /history` - Lịch sử hoạt động (có filter theo thời gian, loại hoạt động)
@@ -637,11 +699,12 @@ server {
 - [x] Theme system
 - [x] Responsive design cho mobile
 - [x] Rate limiting và CORS security
+- [x] Hệ thống thông báo (Notifications)
+- [x] Cải thiện thuật toán gợi ý tiết kiệm (cá nhân hóa, xu hướng, subscription detection, outlier detection)
 
 ### 🚧 Version 1.1 (Đang phát triển)
 - [ ] Multi-language support (Tiếng Việt, English)
 - [ ] Recurring transactions (giao dịch định kỳ)
-- [ ] Notification system (thông báo qua email/browser)
 - [ ] Data visualization nâng cao
 
 ### 📋 Version 2.0 (Kế hoạch)
