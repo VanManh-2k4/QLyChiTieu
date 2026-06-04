@@ -61,7 +61,17 @@ export function getMonthlyReport(userId, year, month) {
     return t.type === 'expense' && date.getFullYear() === year && date.getMonth() + 1 === month;
   });
 
-  const total = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpense = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
+  
+  // Calculate income for the same period
+  const incomeFiltered = rows.filter((t) => {
+    const date = new Date(t.date);
+    return t.type === 'income' && date.getFullYear() === year && date.getMonth() + 1 === month;
+  });
+  const totalIncome = incomeFiltered.reduce((sum, t) => sum + Number(t.amount), 0);
+  
+  const savings = totalIncome - totalExpense;
+  const savingsRate = totalIncome > 0 ? (savings / totalIncome) * 100 : 0;
   
   const byCategory = {};
   filtered.forEach((t) => {
@@ -80,12 +90,15 @@ export function getMonthlyReport(userId, year, month) {
     categoryName: categoryMap.get(Number(catId)) || 'Unknown',
     amount: data.amount,
     count: data.count,
-    percentage: total > 0 ? (data.amount / total) * 100 : 0,
+    percentage: totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0,
   }));
 
   return {
     period: { type: 'month', year, month },
-    totalExpense: total,
+    totalExpense,
+    totalIncome,
+    savings,
+    savingsRate,
     transactionCount: filtered.length,
     categoryBreakdown,
   };
@@ -540,7 +553,208 @@ export function analyzeTrends(userId, periodType, periods) {
   };
 }
 
+// Helper function to analyze previous month
+function analyzePreviousMonth(userId, currentPeriod) {
+  try {
+    const prevMonth = currentPeriod.month === 1 ? 12 : currentPeriod.month - 1;
+    const prevYear = currentPeriod.month === 1 ? currentPeriod.year - 1 : currentPeriod.year;
+    
+    const currentReport = getMonthlyReport(userId, currentPeriod.year, currentPeriod.month);
+    const prevReport = getMonthlyReport(userId, prevYear, prevMonth);
+    
+    if (!currentReport || !prevReport) {
+      return null;
+    }
+    
+    const expenseChange = prevReport.totalExpense > 0 
+      ? ((currentReport.totalExpense - prevReport.totalExpense) / prevReport.totalExpense) * 100 
+      : 0;
+    
+    const savingsRateChange = prevReport.savingsRate !== null && currentReport.savingsRate !== null
+      ? currentReport.savingsRate - prevReport.savingsRate
+      : 0;
+    
+    // Category-wise comparison
+    const categoryChanges = {};
+    if (currentReport.categoryBreakdown && prevReport.categoryBreakdown) {
+      currentReport.categoryBreakdown.forEach(cat => {
+        const prevCat = prevReport.categoryBreakdown.find(c => c.categoryId === cat.categoryId);
+        if (prevCat) {
+          const change = prevCat.amount > 0 
+            ? ((cat.amount - prevCat.amount) / prevCat.amount) * 100 
+            : 0;
+          categoryChanges[cat.categoryId] = {
+            categoryName: cat.categoryName,
+            currentAmount: cat.amount,
+            prevAmount: prevCat.amount,
+            changePercent: change,
+            trend: change > 20 ? 'increasing' : change < -15 ? 'decreasing' : 'stable'
+          };
+        }
+      });
+    }
+    
+    return {
+      expenseChange,
+      savingsRateChange,
+      categoryChanges,
+      currentExpense: currentReport.totalExpense,
+      prevExpense: prevReport.totalExpense,
+      currentSavingsRate: currentReport.savingsRate,
+      prevSavingsRate: prevReport.savingsRate
+    };
+  } catch (error) {
+    console.error('Error in analyzePreviousMonth:', error);
+    return null;
+  }
+}
+
+// Helper function to analyze spending habits by day of week and week of month
+function analyzeSpendingHabits(userId, period) {
+  try {
+    const { rows } = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+    
+    // Filter transactions for the current period
+    const filtered = rows.filter(t => {
+      const date = new Date(t.date);
+      return t.type === 'expense' && 
+             date.getFullYear() === period.year && 
+             date.getMonth() + 1 === period.month;
+    });
+    
+    // Analyze by day of week (0 = Sunday, 6 = Saturday)
+    const spendingByDayOfWeek = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+    filtered.forEach(t => {
+      const dayOfWeek = new Date(t.date).getDay();
+      spendingByDayOfWeek[dayOfWeek].push(Number(t.amount));
+    });
+    
+    const avgByDayOfWeek = {};
+    const totalByDayOfWeek = {};
+    Object.keys(spendingByDayOfWeek).forEach(day => {
+      const amounts = spendingByDayOfWeek[day];
+      const total = amounts.length > 0 ? amounts.reduce((sum, a) => sum + a, 0) : 0;
+      avgByDayOfWeek[day] = amounts.length > 0 ? total / amounts.length : 0;
+      totalByDayOfWeek[day] = total;
+    });
+    
+    // Identify high-spending days (weekend vs weekday)
+    const weekendDays = [0, 6]; // Sunday, Saturday
+    const weekdayDays = [1, 2, 3, 4, 5];
+    
+    const weekendSpending = weekendDays.reduce((sum, day) => sum + totalByDayOfWeek[day], 0);
+    const weekdaySpending = weekdayDays.reduce((sum, day) => sum + totalByDayOfWeek[day], 0);
+    const weekendAvg = weekendDays.reduce((sum, day) => sum + avgByDayOfWeek[day], 0) / 2;
+    const weekdayAvg = weekdayDays.reduce((sum, day) => sum + avgByDayOfWeek[day], 0) / 5;
+    
+    // Analyze by week of month (1-4)
+    const spendingByWeek = { 1: [], 2: [], 3: [], 4: [] };
+    filtered.forEach(t => {
+      const day = new Date(t.date).getDate();
+      const week = Math.ceil(day / 7);
+      if (week <= 4) {
+        spendingByWeek[week].push(Number(t.amount));
+      }
+    });
+    
+    const avgByWeek = {};
+    const totalByWeek = {};
+    Object.keys(spendingByWeek).forEach(week => {
+      const amounts = spendingByWeek[week];
+      const total = amounts.length > 0 ? amounts.reduce((sum, a) => sum + a, 0) : 0;
+      avgByWeek[week] = amounts.length > 0 ? total / amounts.length : 0;
+      totalByWeek[week] = total;
+    });
+    
+    // Find highest spending week
+    const highestWeek = Object.keys(totalByWeek).reduce((max, week) => 
+      totalByWeek[week] > totalByWeek[max] ? week : max, '1'
+    );
+    
+    return {
+      avgByDayOfWeek,
+      totalByDayOfWeek,
+      weekendAvg,
+      weekdayAvg,
+      weekendToWeekdayRatio: weekdayAvg > 0 ? weekendAvg / weekdayAvg : 0,
+      avgByWeek,
+      totalByWeek,
+      highestWeek,
+      highestWeekAvg: totalByWeek[highestWeek],
+      totalTransactions: filtered.length
+    };
+  } catch (error) {
+    console.error('Error in analyzeSpendingHabits:', error);
+    return null;
+  }
+}
+
+// Helper function to calculate savings potential
+function calculateSavingsPotential(userId, period, habits) {
+  try {
+    const { rows } = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+    
+    // Filter transactions for the current period
+    const filtered = rows.filter(t => {
+      const date = new Date(t.date);
+      return t.type === 'expense' && 
+             date.getFullYear() === period.year && 
+             date.getMonth() + 1 === period.month;
+    });
+    
+    const categories = categoryRepository.listAll(userId).filter(c => c.type === 'expense');
+    const categoryMap = new Map(categories.map(c => [c.id, c]));
+    
+    // Define discretionary categories (can be reduced)
+    const discretionaryCategoryNames = ['Ăn uống ngoài', 'Giải trí', 'Mua sắm', 'Du lịch', 'Cà phê', 'Rạp phim'];
+    const discretionaryCategories = categories.filter(c => discretionaryCategoryNames.includes(c.name));
+    const discretionaryCategoryIds = new Set(discretionaryCategories.map(c => c.id));
+    
+    // Calculate discretionary spending
+    const discretionarySpending = filtered
+      .filter(t => discretionaryCategoryIds.has(t.categoryId))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
+    // Calculate fixed spending (hard to reduce)
+    const fixedCategoryNames = ['Tiền nhà', 'Điện nước', 'Internet', 'Bảo hiểm', 'Học phí'];
+    const fixedCategories = categories.filter(c => fixedCategoryNames.includes(c.name));
+    const fixedCategoryIds = new Set(fixedCategories.map(c => c.id));
+    
+    const fixedSpending = filtered
+      .filter(t => fixedCategoryIds.has(t.categoryId))
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
+    const totalExpense = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
+    const flexibleSpending = totalExpense - fixedSpending;
+    
+    // Calculate savings potential
+    const discretionarySavingsPotential = discretionarySpending * 0.3; // Can save 30% of discretionary
+    const weekendSavingsPotential = habits && habits.weekendAvg > habits.weekdayAvg 
+      ? (habits.weekendAvg - habits.weekdayAvg) * 4 * 0.2 // 20% of excess weekend spending
+      : 0;
+    
+    const totalSavingsPotential = discretionarySavingsPotential + weekendSavingsPotential;
+    
+    return {
+      totalExpense,
+      fixedSpending,
+      discretionarySpending,
+      flexibleSpending,
+      discretionarySavingsPotential,
+      weekendSavingsPotential,
+      totalSavingsPotential,
+      discretionaryRatio: totalExpense > 0 ? (discretionarySpending / totalExpense) * 100 : 0,
+      fixedRatio: totalExpense > 0 ? (fixedSpending / totalExpense) * 100 : 0,
+      flexibleRatio: totalExpense > 0 ? (flexibleSpending / totalExpense) * 100 : 0
+    };
+  } catch (error) {
+    console.error('Error in calculateSavingsPotential:', error);
+    return null;
+  }
+}
+
 export function suggestSavings(userId, periodType, period) {
+  console.log('suggestSavings called with:', { userId, periodType, period });
   let report;
   if (periodType === 'month') {
     report = getMonthlyReport(userId, period.year, period.month);
@@ -558,7 +772,8 @@ export function suggestSavings(userId, periodType, period) {
   if (periodType === 'month') {
     const periods = [];
     for (let i = 5; i >= 0; i--) {
-      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      const currentDate = new Date(period.year, period.month - 1, 1);
+      const prevDate = new Date(currentDate.setMonth(currentDate.getMonth() - i));
       periods.push({
         year: prevDate.getFullYear(),
         month: prevDate.getMonth() + 1,
@@ -578,6 +793,102 @@ export function suggestSavings(userId, periodType, period) {
   const largeTransactionThreshold = avgIncome > 0 ? avgIncome * 0.05 : 1000000; // 5% of income or 1M fixed
 
   const suggestions = [];
+
+  // Get all transactions for outlier detection (needed for all period types)
+  const allTransactions = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+
+  // New: Analyze previous month, spending habits, and savings potential (only for month)
+  let previousMonthAnalysis = null;
+  let spendingHabits = null;
+  let savingsPotential = null;
+
+  if (periodType === 'month') {
+    try {
+      previousMonthAnalysis = analyzePreviousMonth(userId, period);
+      spendingHabits = analyzeSpendingHabits(userId, period);
+      savingsPotential = calculateSavingsPotential(userId, period, spendingHabits);
+
+      // Add suggestions based on previous month analysis
+      if (previousMonthAnalysis && previousMonthAnalysis.expenseChange > 20) {
+        suggestions.push({
+          type: 'month_over_month_increase',
+          priority: 'high',
+          suggestion: `Chi tiêu tháng này tăng ${previousMonthAnalysis.expenseChange.toFixed(1)}% so với tháng trước (${formatVND(previousMonthAnalysis.prevExpense)} → ${formatVND(previousMonthAnalysis.currentExpense)}). Cần kiểm soát chi tiêu ngay.`,
+          potentialSavings: (previousMonthAnalysis.currentExpense - previousMonthAnalysis.prevExpense) * 0.3,
+          action: 'review_category',
+          actionLabel: 'Xem chi tiết',
+        });
+      } else if (previousMonthAnalysis && previousMonthAnalysis.expenseChange < -15) {
+        suggestions.push({
+          type: 'month_over_month_decrease',
+          priority: 'low',
+          suggestion: `Tuyệt vời! Chi tiêu tháng này giảm ${Math.abs(previousMonthAnalysis.expenseChange).toFixed(1)}% so với tháng trước. Tiếp tục duy trì.`,
+          potentialSavings: 0,
+          action: null,
+          actionLabel: null,
+        });
+      }
+
+      if (previousMonthAnalysis && previousMonthAnalysis.savingsRateChange < -10) {
+        suggestions.push({
+          type: 'savings_rate_decrease',
+          priority: 'medium',
+          suggestion: `Tỷ lệ tiết kiệm giảm ${Math.abs(previousMonthAnalysis.savingsRateChange).toFixed(1)}% so với tháng trước. Hãy cố gắng tăng tỷ lệ tiết kiệm lên ít nhất 20%.`,
+          potentialSavings: avgIncome * 0.1,
+          action: 'review_category',
+          actionLabel: 'Xem chi tiết',
+        });
+      }
+
+      // Add suggestions based on spending habits
+      if (spendingHabits && spendingHabits.weekendToWeekdayRatio > 1.5) {
+        suggestions.push({
+          type: 'weekend_spending_high',
+          priority: 'medium',
+          suggestion: `Chi tiêu cuối tuần cao ${spendingHabits.weekendToWeekdayRatio.toFixed(1)} lần so với ngày thường. Hãy lập kế hoạch chi tiêu cho cuối tuần.`,
+          potentialSavings: savingsPotential ? savingsPotential.weekendSavingsPotential : 0,
+          action: 'review_transactions',
+          actionLabel: 'Xem giao dịch cuối tuần',
+        });
+      }
+
+      if (spendingHabits && spendingHabits.highestWeekAvg > spendingHabits.weekdayAvg * 2) {
+        suggestions.push({
+          type: 'high_spending_week',
+          priority: 'medium',
+          suggestion: `Tuần ${spendingHabits.highestWeek} có chi tiêu cao nhất trong tháng. Hãy kiểm soát chi tiêu vào tuần này.`,
+          potentialSavings: (spendingHabits.highestWeekAvg - spendingHabits.weekdayAvg) * 0.2,
+          action: 'review_transactions',
+          actionLabel: 'Xem giao dịch tuần này',
+        });
+      }
+
+      // Add suggestions based on savings potential
+      if (savingsPotential && savingsPotential.discretionaryRatio > 30) {
+        suggestions.push({
+          type: 'reduce_discretionary',
+          priority: 'high',
+          suggestion: `Chi tiêu không cần thiết chiếm ${savingsPotential.discretionaryRatio.toFixed(1)}% tổng chi tiêu (${formatVND(savingsPotential.discretionarySpending)}). Có thể tiết kiệm ${formatVND(savingsPotential.discretionarySavingsPotential)} bằng cách giảm 30% chi tiêu này.`,
+          potentialSavings: savingsPotential.discretionarySavingsPotential,
+          action: 'review_category',
+          actionLabel: 'Xem chi tiết',
+        });
+      }
+
+      if (savingsPotential && savingsPotential.flexibleRatio > 50) {
+        suggestions.push({
+          type: 'optimize_flexible_spending',
+          priority: 'medium',
+          suggestion: `Chi tiêu linh hoạt chiếm ${savingsPotential.flexibleRatio.toFixed(1)}% tổng chi tiêu. Có nhiều cơ hội để tối ưu hóa và tiết kiệm.`,
+          potentialSavings: savingsPotential.flexibleSpending * 0.15,
+          action: 'review_category',
+          actionLabel: 'Xem chi tiết',
+        });
+      }
+    } catch (error) {
+      console.error('Error in new analysis:', error);
+    }
+  }
 
   report.categoryBreakdown.forEach((cat) => {
     const categoryInfo = categoryMap.get(cat.categoryId);
@@ -649,11 +960,11 @@ export function suggestSavings(userId, periodType, period) {
     });
 
     // Budget optimization suggestions - analyze last 6 months
-    const budgetOptimizationSuggestions = [];
-    const allTransactions = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
+    const budgetOptimizationSuggestions = {};
     
     for (let i = 0; i < 6; i++) {
-      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      const currentDate = new Date(period.year, period.month - 1, 1);
+      const prevDate = new Date(currentDate.setMonth(currentDate.getMonth() - i));
       const prevYear = prevDate.getFullYear();
       const prevMonth = prevDate.getMonth() + 1;
 
@@ -758,7 +1069,8 @@ export function suggestSavings(userId, periodType, period) {
   if (periodType === 'month') {
     const periods = [];
     for (let i = 5; i >= 0; i--) {
-      const prevDate = new Date(period.year, period.month - i - 1, 1);
+      const currentDate = new Date(period.year, period.month - 1, 1);
+      const prevDate = new Date(currentDate.setMonth(currentDate.getMonth() - i));
       periods.push({
         year: prevDate.getFullYear(),
         month: prevDate.getMonth() + 1,
@@ -822,6 +1134,8 @@ export function suggestSavings(userId, periodType, period) {
   }
 
   // Detect potential subscriptions (recurring transactions) with cycle analysis
+  // DISABLED: User requested to remove subscription suggestions
+  /*
   const allTransactions = transactionRepository.listForUser(userId, {}, { page: 1, limit: 10000 });
   
   // Get transactions from last 6 months for better cycle detection
@@ -925,6 +1239,7 @@ export function suggestSavings(userId, periodType, period) {
       }
     }
   });
+  */
 
   // Detect outlier transactions (unusual spending)
   const currentPeriodTransactions = allTransactions.rows.filter((t) => {
@@ -997,23 +1312,44 @@ export function suggestSavings(userId, periodType, period) {
     });
   }
 
-  const subscriptionCount = suggestions.filter((s) => s.type === 'subscription').length;
-  if (subscriptionCount > 0) {
+  // Add insights based on spending habits
+  if (spendingHabits && spendingHabits.weekendToWeekdayRatio > 1.5) {
     insights.push({
       type: 'info',
-      message: `Phát hiện ${subscriptionCount} khoản định kỳ có thể. Hãy xem xét lại các khoản này.`,
+      message: `Chi tiêu cuối tuần cao ${spendingHabits.weekendToWeekdayRatio.toFixed(1)} lần so với ngày thường. Hãy lập kế hoạch chi tiêu cho cuối tuần.`,
+    });
+  }
+
+  if (spendingHabits && spendingHabits.highestWeek) {
+    insights.push({
+      type: 'info',
+      message: `Tuần ${spendingHabits.highestWeek} có chi tiêu cao nhất trong tháng (${formatVND(spendingHabits.highestWeekAvg)}). Hãy kiểm soát chi tiêu vào tuần này.`,
+    });
+  }
+
+  // Add insights based on savings potential
+  if (savingsPotential && savingsPotential.discretionaryRatio > 30) {
+    insights.push({
+      type: 'warning',
+      message: `Chi tiêu không cần thiết chiếm ${savingsPotential.discretionaryRatio.toFixed(1)}% tổng chi tiêu. Có thể tiết kiệm ${formatVND(savingsPotential.discretionarySavingsPotential)}.`,
     });
   }
 
   return {
     period: report.period,
     totalExpense: report.totalExpense,
+    totalIncome: report.totalIncome || 0,
+    savings: report.savings || 0,
+    savingsRate: report.savingsRate || 0,
     suggestions: sortedSuggestions,
     totalPotentialSavings,
     savingsPercentage: report.totalExpense > 0 
       ? ((totalPotentialSavings / report.totalExpense) * 100).toFixed(2)
       : 0,
     insights,
+    spendingHabits,
+    savingsPotential,
+    previousMonthAnalysis,
   };
 }
 

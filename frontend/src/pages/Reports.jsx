@@ -79,6 +79,8 @@ export function Reports() {
   const [detailModalData, setDetailModalData] = useState(null);
   const [categoryTransactions, setCategoryTransactions] = useState(null);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [analysisModalData, setAnalysisModalData] = useState(null);
 
   // Lock body scroll when detail modal is open
   useEffect(() => {
@@ -91,6 +93,18 @@ export function Reports() {
       document.body.style.overflow = '';
     };
   }, [detailModalOpen]);
+
+  // Lock body scroll when analysis modal is open
+  useEffect(() => {
+    if (analysisModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [analysisModalOpen]);
 
   const loadTrends = async () => {
     setLoading(true);
@@ -196,17 +210,66 @@ export function Reports() {
   };
 
   const handleSuggestionAction = async (suggestion) => {
-    if (suggestion.action === 'review_category' || suggestion.action === 'review_transactions') {
-      setDetailModalData(suggestion);
-      setDetailModalOpen(true);
+    // Open detailed analysis modal for all suggestions
+    setAnalysisModalData(suggestion);
+    setAnalysisModalOpen(true);
+    if (suggestion.categoryId) {
       await loadCategoryTransactions(suggestion.categoryId);
-    } else if (suggestion.action === 'adjust_budget') {
-      // Navigate to Budget page
-      window.location.href = '/budget';
-    } else if (suggestion.action === 'review_subscription') {
-      setDetailModalData(suggestion);
-      setDetailModalOpen(true);
-      await loadCategoryTransactions(suggestion.categoryId);
+    }
+  };
+
+  // Helper function to get short description for each suggestion type
+  const getSuggestionDescription = (suggestion) => {
+    switch (suggestion.type) {
+      case 'high_spending':
+        return 'Danh mục này có khoản chi cao bất thường';
+      case 'large_transactions':
+        return 'Có giao dịch lớn cần xem xét';
+      case 'budget_exceeded':
+        return 'Đã vượt quá ngân sách định trước';
+      case 'subscription':
+        return 'Phát hiện khoản chi định kỳ';
+      case 'trend_increasing':
+        return `Chi tiêu tăng ${suggestion.changePercent?.toFixed(1)}%`;
+      case 'trend_decreasing':
+        return `Chi tiêu giảm ${Math.abs(suggestion.changePercent)?.toFixed(1)}%`;
+      case 'budget_increase':
+        return 'Thường xuyên vượt ngân sách';
+      case 'budget_decrease':
+        return 'Thường xuyên dư ngân sách';
+      case 'no_budget':
+        return 'Chưa có ngân sách';
+      case 'outlier':
+        return 'Phát hiện giao dịch bất thường';
+      case 'month_over_month_increase':
+        return `Chi tiêu tăng ${suggestion.suggestion?.match(/\d+\.?\d*/)?.[0] || ''}% so với tháng trước`;
+      case 'month_over_month_decrease':
+        return 'Chi tiêu giảm tích cực';
+      case 'savings_rate_decrease':
+        return 'Tỷ lệ tiết kiệm giảm';
+      case 'weekend_spending_high':
+        return 'Chi tiêu cuối tuần cao';
+      case 'high_spending_week':
+        return 'Tuần có chi tiêu cao nhất';
+      case 'reduce_discretionary':
+        return 'Chi tiêu không cần thiết cao';
+      case 'optimize_flexible_spending':
+        return 'Có thể tối ưu hóa chi tiêu';
+      default:
+        return 'Gợi ý tiết kiệm';
+    }
+  };
+
+  // Helper function to get badge for each suggestion type
+  const getSuggestionBadge = (suggestion) => {
+    if (suggestion.priority === 'high') {
+      return { text: 'Ưu tiên cao', color: 'bg-rose-100 text-rose-700' };
+    } else if (suggestion.priority === 'medium') {
+      return { text: 'Theo dõi', color: 'bg-amber-100 text-amber-700' };
+    } else if (suggestion.type === 'subscription' || suggestion.type === 'large_transactions' || suggestion.type === 'outlier') {
+      return { text: 'Giao dịch lớn', color: 'bg-blue-100 text-blue-700' };
+    } else {
+      return { text: 'Có thể tiết kiệm', color: 'bg-emerald-100 text-emerald-700' };
     }
   };
 
@@ -588,6 +651,32 @@ export function Reports() {
         </div>
       ) : savingsData ? (
         <div className="space-y-6">
+          {/* Current Month Financial Summary - Only show when income data is available */}
+          {savingsData.totalIncome > 0 && (
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-600">Thu nhập</p>
+                <p className="mt-2 text-2xl font-bold text-emerald-600">{formatVND(savingsData.totalIncome)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-600">Chi tiêu</p>
+                <p className="mt-2 text-2xl font-bold text-rose-600">{formatVND(savingsData.totalExpense)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-600">Tiết kiệm</p>
+                <p className={`mt-2 text-2xl font-bold ${savingsData.savings >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {formatVND(savingsData.savings)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-sm text-slate-600">Tỷ lệ tiết kiệm</p>
+                <p className={`mt-2 text-2xl font-bold ${savingsData.savingsRate >= 20 ? 'text-emerald-600' : savingsData.savingsRate >= 10 ? 'text-amber-600' : 'text-rose-600'}`}>
+                  {savingsData.savingsRate.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Summary Card */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
@@ -640,6 +729,176 @@ export function Reports() {
             </div>
           )}
 
+          {/* Previous Month Comparison */}
+          {savingsData.previousMonthAnalysis && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-lg bg-blue-100 p-3 text-blue-600">
+                  <CalendarIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">So Sánh Với Tháng Trước</h3>
+                  <p className="text-sm text-slate-600">Phân tích thay đổi so với tháng trước</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu tháng trước</p>
+                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.previousMonthAnalysis.prevExpense)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu tháng này</p>
+                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.previousMonthAnalysis.currentExpense)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Thay đổi chi tiêu</p>
+                  <p className={`mt-1 text-xl font-bold ${savingsData.previousMonthAnalysis.expenseChange >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {savingsData.previousMonthAnalysis.expenseChange >= 0 ? '+' : ''}{savingsData.previousMonthAnalysis.expenseChange.toFixed(1)}%
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Thay đổi tỷ lệ tiết kiệm</p>
+                  <p className={`mt-1 text-xl font-bold ${savingsData.previousMonthAnalysis.savingsRateChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {savingsData.previousMonthAnalysis.savingsRateChange >= 0 ? '+' : ''}{savingsData.previousMonthAnalysis.savingsRateChange.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Spending Habits Analysis */}
+          {savingsData.spendingHabits && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-lg bg-purple-100 p-3 text-purple-600">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Thói Quen Chi Tiêu</h3>
+                  <p className="text-sm text-slate-600">Phân tích chi tiêu theo thời gian</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu cuối tuần TB</p>
+                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.spendingHabits.weekendAvg)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu ngày thường TB</p>
+                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.spendingHabits.weekdayAvg)}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Tỷ lệ cuối tuần/ngày thường</p>
+                  <p className={`mt-1 text-xl font-bold ${savingsData.spendingHabits.weekendToWeekdayRatio > 1.5 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {savingsData.spendingHabits.weekendToWeekdayRatio.toFixed(1)}x
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Tuần chi tiêu cao nhất</p>
+                  <p className="mt-1 text-xl font-bold">Tuần {savingsData.spendingHabits.highestWeek} ({formatVND(savingsData.spendingHabits.highestWeekAvg)})</p>
+                </div>
+              </div>
+              {/* Spending by Day of Week Chart */}
+              <div className="mt-6">
+                <h4 className="font-semibold mb-3">Chi tiêu theo ngày trong tuần</h4>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={Object.entries(savingsData.spendingHabits.totalByDayOfWeek || {}).map(([day, amount]) => ({
+                      day: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][parseInt(day)],
+                      amount,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tickFormatter={(v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : String(v)} />
+                      <Tooltip formatter={(value) => formatVND(value)} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                      <Bar dataKey="amount" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              {/* Spending by Week of Month Chart */}
+              <div className="mt-6">
+                <h4 className="font-semibold mb-3">Chi tiêu theo tuần trong tháng</h4>
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={Object.entries(savingsData.spendingHabits.totalByWeek || {}).map(([week, amount]) => ({
+                      week: `Tuần ${week}`,
+                      amount,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} />
+                      <YAxis tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} tickFormatter={(v) => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}k` : String(v)} />
+                      <Tooltip formatter={(value) => formatVND(value)} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                      <Bar dataKey="amount" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Savings Potential Breakdown */}
+          {savingsData.savingsPotential && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="rounded-lg bg-emerald-100 p-3 text-emerald-600">
+                  <Target className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Phân Tích Cấu Trúc Chi Tiêu</h3>
+                  <p className="text-sm text-slate-600">Phân loại chi tiêu để tìm cơ hội tiết kiệm</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 mb-6">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu không cần thiết</p>
+                  <p className="mt-1 text-xl font-bold text-rose-600">{formatVND(savingsData.savingsPotential.discretionarySpending)}</p>
+                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.discretionaryRatio.toFixed(1)}% tổng chi tiêu</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu cố định</p>
+                  <p className="mt-1 text-xl font-bold text-slate-600">{formatVND(savingsData.savingsPotential.fixedSpending)}</p>
+                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.fixedRatio.toFixed(1)}% tổng chi tiêu</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Chi tiêu linh hoạt</p>
+                  <p className="mt-1 text-xl font-bold text-amber-600">{formatVND(savingsData.savingsPotential.flexibleSpending)}</p>
+                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.flexibleRatio.toFixed(1)}% tổng chi tiêu</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">Tiềm năng tiết kiệm</p>
+                  <p className="mt-1 text-xl font-bold text-emerald-600">{formatVND(savingsData.savingsPotential.totalSavingsPotential)}</p>
+                  <p className="text-sm text-slate-500">Từ chi tiêu không cần thiết & cuối tuần</p>
+                </div>
+              </div>
+              {/* Pie Chart */}
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={[
+                        { name: 'Không cần thiết', value: savingsData.savingsPotential.discretionarySpending, color: '#ef4444' },
+                        { name: 'Cố định', value: savingsData.savingsPotential.fixedSpending, color: '#64748b' },
+                        { name: 'Linh hoạt', value: savingsData.savingsPotential.flexibleSpending, color: '#f59e0b' },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      <Cell fill="#ef4444" />
+                      <Cell fill="#64748b" />
+                      <Cell fill="#f59e0b" />
+                    </Pie>
+                    <Tooltip formatter={(value) => formatVND(value)} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
           {/* Suggestions */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
@@ -684,35 +943,59 @@ export function Reports() {
                         return `Tạo ngân sách cho "${suggestion.categoryName}"`;
                       case 'outlier':
                         return `Kiểm tra ${suggestion.outlierCount} giao dịch bất thường trong "${suggestion.categoryName}"`;
+                      case 'month_over_month_increase':
+                        return `Kiểm soát chi tiêu tăng so với tháng trước`;
+                      case 'month_over_month_decrease':
+                        return `Tiếp tục duy trì chi tiêu giảm`;
+                      case 'savings_rate_decrease':
+                        return `Tăng tỷ lệ tiết kiệm`;
+                      case 'weekend_spending_high':
+                        return `Lập kế hoạch chi tiêu cuối tuần`;
+                      case 'high_spending_week':
+                        return `Kiểm soát chi tiêu tuần cao nhất`;
+                      case 'reduce_discretionary':
+                        return `Giảm chi tiêu không cần thiết`;
+                      case 'optimize_flexible_spending':
+                        return `Tối ưu hóa chi tiêu linh hoạt`;
                       default:
                         return suggestion.suggestion;
                     }
                   };
 
                   return (
-                    <div key={index} className="rounded-lg border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 hover:shadow-md transition">
-                      <div className="flex items-center justify-between">
+                    <div key={index} className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 hover:shadow-lg transition">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <div className="shrink-0 rounded-full bg-emerald-100 p-2">
+                          <div className="flex items-start gap-3">
+                            <div className="shrink-0 rounded-full bg-emerald-100 p-2.5">
                               <Sparkles className="h-5 w-5 text-emerald-600" />
                             </div>
-                            <div>
-                              <p className="font-semibold text-slate-800">{getActionText()}</p>
-                              <p className="text-sm text-slate-600 mt-1">
-                                Tiết kiệm được: <span className="font-bold text-emerald-600">{formatVND(suggestion.potentialSavings)}</span>
-                              </p>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-semibold text-slate-800">{getActionText()}</p>
+                                {(() => {
+                                  const badge = getSuggestionBadge(suggestion);
+                                  return (
+                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.color}`}>
+                                      {badge.text}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+                              <p className="text-sm text-slate-600 mb-2">{getSuggestionDescription(suggestion)}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm text-slate-600">Tiết kiệm được:</p>
+                                <span className="text-lg font-bold text-emerald-600">{formatVND(suggestion.potentialSavings)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                        {suggestion.actionLabel && (
-                          <button 
-                            onClick={() => handleSuggestionAction(suggestion)}
-                            className="ml-4 shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition"
-                          >
-                            {suggestion.actionLabel}
-                          </button>
-                        )}
+                        <button 
+                          onClick={() => handleSuggestionAction(suggestion)}
+                          className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:from-emerald-600 hover:to-emerald-700 transition shadow-md"
+                        >
+                          Xem phân tích
+                        </button>
                       </div>
                     </div>
                   );
@@ -1603,6 +1886,249 @@ export function Reports() {
     );
   };
 
+  // Analysis Modal for Detailed Savings Suggestion
+  const renderAnalysisModal = () => {
+    if (!analysisModalOpen || !analysisModalData) return null;
+
+    const badge = getSuggestionBadge(analysisModalData);
+    const actionText = (() => {
+      switch (analysisModalData.type) {
+        case 'high_spending':
+          return `Giảm chi tiêu trong "${analysisModalData.categoryName}"`;
+        case 'large_transactions':
+          return `Xem xét lại các giao dịch lớn trong "${analysisModalData.categoryName}"`;
+        case 'budget_exceeded':
+          return `Cắt giảm chi tiêu "${analysisModalData.categoryName}" đã vượt ngân sách`;
+        case 'subscription':
+          return analysisModalData.cycleType === 'monthly' ? `Hủy bỏ khoản định kỳ hàng tháng: "${analysisModalData.note}"` :
+                 analysisModalData.cycleType === 'weekly' ? `Hủy bỏ khoản định kỳ hàng tuần: "${analysisModalData.note}"` :
+                 analysisModalData.cycleType === 'quarterly' ? `Hủy bỏ khoản định kỳ hàng quý: "${analysisModalData.note}"` :
+                 analysisModalData.cycleType === 'yearly' ? `Hủy bỏ khoản định kỳ hàng năm: "${analysisModalData.note}"` :
+                 analysisModalData.cycleType === 'regular' ? `Hủy bỏ khoản định kỳ (${analysisModalData.cycleDescription}): "${analysisModalData.note}"` :
+                 `Hủy bỏ khoản lặp lại: "${analysisModalData.note}"`;
+        case 'trend_increasing':
+          return `Kiểm soát chi tiêu "${analysisModalData.categoryName}" đang tăng ${analysisModalData.changePercent?.toFixed(1)}%`;
+        case 'trend_decreasing':
+          return `Tiếp tục duy trì "${analysisModalData.categoryName}" đang giảm ${Math.abs(analysisModalData.changePercent)?.toFixed(1)}%`;
+        case 'budget_increase':
+          return `Tăng ngân sách cho "${analysisModalData.categoryName}"`;
+        case 'budget_decrease':
+          return `Giảm ngân sách cho "${analysisModalData.categoryName}"`;
+        case 'no_budget':
+          return `Tạo ngân sách cho "${analysisModalData.categoryName}"`;
+        case 'outlier':
+          return `Kiểm tra ${analysisModalData.outlierCount} giao dịch bất thường trong "${analysisModalData.categoryName}"`;
+        case 'month_over_month_increase':
+          return `Kiểm soát chi tiêu tăng so với tháng trước`;
+        case 'month_over_month_decrease':
+          return `Tiếp tục duy trì chi tiêu giảm`;
+        case 'savings_rate_decrease':
+          return `Tăng tỷ lệ tiết kiệm`;
+        case 'weekend_spending_high':
+          return `Lập kế hoạch chi tiêu cuối tuần`;
+        case 'high_spending_week':
+          return `Kiểm soát chi tiêu tuần cao nhất`;
+        case 'reduce_discretionary':
+          return `Giảm chi tiêu không cần thiết`;
+        case 'optimize_flexible_spending':
+          return `Tối ưu hóa chi tiêu linh hoạt`;
+        default:
+          return analysisModalData.suggestion || 'Gợi ý tiết kiệm';
+      }
+    })();
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-200 p-6 shrink-0 bg-gradient-to-r from-emerald-50 to-white">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-emerald-100 p-3">
+                <Lightbulb className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Phân Tích Gợi Ý Tiết Kiệm</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.color}`}>
+                    {badge.text}
+                  </span>
+                  <span className="text-sm text-slate-600">
+                    {analysisModalData.priority === 'high' ? 'Ưu tiên cao' : analysisModalData.priority === 'medium' ? 'Ưu tiên trung bình' : 'Ưu tiên thấp'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setAnalysisModalOpen(false);
+                setAnalysisModalData(null);
+              }}
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            {/* Part 1: Tổng quan gợi ý */}
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-emerald-50 to-white p-5">
+              <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Target className="h-5 w-5 text-emerald-600" />
+                Tổng quan gợi ý
+              </h4>
+              <p className="text-base text-slate-700 mb-4">{actionText}</p>
+              <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-emerald-200">
+                <div>
+                  <p className="text-sm text-slate-600">Tiết kiệm tiềm năng</p>
+                  <p className="text-2xl font-bold text-emerald-600">{formatVND(analysisModalData.potentialSavings)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-600">Mức độ ưu tiên</p>
+                  <p className={`text-lg font-semibold ${
+                    analysisModalData.priority === 'high' ? 'text-rose-600' : 
+                    analysisModalData.priority === 'medium' ? 'text-amber-600' : 'text-emerald-600'
+                  }`}>
+                    {analysisModalData.priority === 'high' ? 'Cao' : analysisModalData.priority === 'medium' ? 'Trung bình' : 'Thấp'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Part 2: Lý do đề xuất */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-600" />
+                Lý do đề xuất
+              </h4>
+              <p className="text-base text-slate-700">{analysisModalData.suggestion}</p>
+              <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Chi tiết:</strong> {getSuggestionDescription(analysisModalData)}
+                </p>
+              </div>
+            </div>
+
+            {/* Part 3: So sánh nhanh */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-purple-600" />
+                So sánh nhanh
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-600">Chi tiêu hiện tại</p>
+                  <p className="text-xl font-bold text-slate-900">
+                    {analysisModalData.currentAmount ? formatVND(analysisModalData.currentAmount) : 
+                     analysisModalData.spent ? formatVND(analysisModalData.spent) : 
+                     analysisModalData.amount ? formatVND(analysisModalData.amount) : 
+                     analysisModalData.categoryName ? `Danh mục: ${analysisModalData.categoryName}` : 'N/A'}
+                  </p>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-600">Ngân sách / Tháng trước</p>
+                  <p className="text-xl font-bold text-slate-900">
+                    {analysisModalData.budget ? formatVND(analysisModalData.budget) : 
+                     analysisModalData.prevAmount ? formatVND(analysisModalData.prevAmount) : 
+                     analysisModalData.prevExpense ? formatVND(analysisModalData.prevExpense) : 'N/A'}
+                  </p>
+                </div>
+              </div>
+              {analysisModalData.overspent && (
+                <div className="mt-4 p-4 bg-rose-50 rounded-lg">
+                  <p className="text-sm text-rose-700">
+                    <strong>Vượt ngân sách:</strong> {formatVND(analysisModalData.overspent)}
+                  </p>
+                </div>
+              )}
+              {analysisModalData.changePercent !== undefined && analysisModalData.changePercent !== null && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-lg">
+                  <p className="text-sm text-amber-700">
+                    <strong>Thay đổi:</strong> {analysisModalData.changePercent > 0 ? '+' : ''}{analysisModalData.changePercent.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {analysisModalData.expenseChange !== undefined && analysisModalData.expenseChange !== null && (
+                <div className="mt-4 p-4 bg-amber-50 rounded-lg">
+                  <p className="text-sm text-amber-700">
+                    <strong>Thay đổi chi tiêu:</strong> {analysisModalData.expenseChange > 0 ? '+' : ''}{analysisModalData.expenseChange.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Part 4: Giao dịch liên quan */}
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-indigo-600" />
+                Giao dịch liên quan
+              </h4>
+              {loadingTransactions ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 rounded-lg bg-slate-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : categoryTransactions && categoryTransactions.length > 0 ? (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {categoryTransactions.slice(0, 10).map((t) => (
+                    <div key={t.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3 hover:bg-slate-50 transition">
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-800">{t.note || t.description || 'Không có ghi chú'}</p>
+                        <p className="text-xs text-slate-500">{new Date(t.date).toLocaleDateString('vi-VN')}</p>
+                      </div>
+                      <p className="font-semibold text-rose-600">{formatVND(t.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-slate-500 py-8">Không có giao dịch liên quan.</p>
+              )}
+            </div>
+
+            {/* Part 5: Hành động đề xuất */}
+            <div className="rounded-xl border border-slate-200 bg-gradient-to-r from-blue-50 to-white p-5">
+              <h4 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-blue-600" />
+                Hành động đề xuất
+              </h4>
+              <div className="space-y-3">
+                {analysisModalData.action === 'adjust_budget' && (
+                  <button
+                    onClick={() => {
+                      window.location.href = '/budget';
+                    }}
+                    className="w-full rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:from-indigo-600 hover:to-indigo-700 transition shadow-md"
+                  >
+                    Đặt ngân sách
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setAnalysisModalOpen(false);
+                    setAnalysisModalData(null);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Xem giao dịch chi tiết
+                </button>
+                <button
+                  onClick={() => {
+                    setAnalysisModalOpen(false);
+                    setAnalysisModalData(null);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -1648,6 +2174,7 @@ export function Reports() {
       {activeTab === 'budget' && renderBudgetCompareTab()}
       {activeTab === 'savings' && renderSavingsTab()}
       {renderDetailModal()}
+      {renderAnalysisModal()}
     </div>
   );
 }
