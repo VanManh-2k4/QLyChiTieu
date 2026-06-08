@@ -198,28 +198,28 @@ export function addFunds(id, userId, transactionData) {
       note: value.note
     });
     
-    return { wallet, goal };
+    // Log activity inside transaction
+    logActivity({
+      userId,
+      actionType: 'goal_deposit',
+      entityType: 'goal',
+      entityId: id,
+      title: 'Thêm tiền vào mục tiêu tiết kiệm',
+      details: `Mục tiêu: ${goal.name} | Số tiền: ${value.amount}${value.note ? ' | Ghi chú: ' + value.note : ''}`,
+      amount: value.amount,
+    });
+    
+    // Update status inside transaction
+    const updatedGoal = goalRepository.getById(id, userId);
+    const stats = calculateGoalStats(updatedGoal);
+    const newStatus = determineStatus(updatedGoal, stats);
+    goalRepository.update(id, userId, { status: newStatus });
+    
+    return { wallet, goal, updatedGoal, stats };
   })();
-  
-  // Log activity
-  logActivity({
-    userId,
-    actionType: 'goal_deposit',
-    entityType: 'goal',
-    entityId: id,
-    title: 'Thêm tiền vào mục tiêu tiết kiệm',
-    details: `Mục tiêu: ${goal.name} | Số tiền: ${value.amount}${value.note ? ' | Ghi chú: ' + value.note : ''}`,
-    amount: value.amount,
-  });
-  
-  // Update status
-  const updatedGoal = goalRepository.getById(id, userId);
-  const stats = calculateGoalStats(updatedGoal);
-  const newStatus = determineStatus(updatedGoal, stats);
-  goalRepository.update(id, userId, { status: newStatus });
 
-  // Check for progress milestones and create notifications
-  checkGoalProgressNotifications(userId, updatedGoal, stats);
+  // Check for progress milestones and create notifications (outside transaction as it's optional)
+  checkGoalProgressNotifications(userId, result.updatedGoal, result.stats);
   
   const finalGoal = goalRepository.getById(id, userId);
   const finalStats = calculateGoalStats(finalGoal);
@@ -269,25 +269,25 @@ export function withdrawFunds(id, userId, transactionData) {
       note: value.note
     });
     
-    return { wallet, goal };
+    // Log activity inside transaction
+    logActivity({
+      userId,
+      actionType: 'goal_withdraw',
+      entityType: 'goal',
+      entityId: id,
+      title: 'Rút tiền từ mục tiêu tiết kiệm',
+      details: `Mục tiêu: ${goal.name} | Số tiền: ${value.amount}${value.note ? ' | Ghi chú: ' + value.note : ''}`,
+      amount: value.amount,
+    });
+    
+    // Update status inside transaction
+    const updatedGoal = goalRepository.getById(id, userId);
+    const stats = calculateGoalStats(updatedGoal);
+    const newStatus = determineStatus(updatedGoal, stats);
+    goalRepository.update(id, userId, { status: newStatus });
+    
+    return { wallet, goal, updatedGoal, stats };
   })();
-  
-  // Log activity
-  logActivity({
-    userId,
-    actionType: 'goal_withdraw',
-    entityType: 'goal',
-    entityId: id,
-    title: 'Rút tiền từ mục tiêu tiết kiệm',
-    details: `Mục tiêu: ${goal.name} | Số tiền: ${value.amount}${value.note ? ' | Ghi chú: ' + value.note : ''}`,
-    amount: value.amount,
-  });
-  
-  // Update status
-  const updatedGoal = goalRepository.getById(id, userId);
-  const stats = calculateGoalStats(updatedGoal);
-  const newStatus = determineStatus(updatedGoal, stats);
-  goalRepository.update(id, userId, { status: newStatus });
   
   const finalGoal = goalRepository.getById(id, userId);
   const finalStats = calculateGoalStats(finalGoal);
