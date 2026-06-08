@@ -128,6 +128,12 @@ export function Savings() {
   };
 
   useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
     (async () => {
       await loadBase();
       await loadTransfers(1);

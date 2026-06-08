@@ -52,6 +52,12 @@ export function Budget() {
   };
 
   useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
     (async () => {
       const [catRes, walletRes] = await Promise.all([api.get('/categories'), api.get('/wallets')]);
       setCategories((catRes.data || []).filter((c) => c.type === 'expense'));

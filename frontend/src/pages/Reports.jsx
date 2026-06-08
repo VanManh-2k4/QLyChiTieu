@@ -274,6 +274,12 @@ export function Reports() {
   };
 
   useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
     if (activeTab === 'trends') loadTrends();
     else if (activeTab === 'savings') loadSavings();
     else if (activeTab === 'budget') loadBudgetCompare();
