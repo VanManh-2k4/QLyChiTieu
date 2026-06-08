@@ -19,6 +19,12 @@ export function Wallets() {
   };
 
   useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+      return;
+    }
     load();
   }, []);
 

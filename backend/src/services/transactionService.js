@@ -269,30 +269,27 @@ function checkBudgetNotifications(userId, categoryId, month, year, categoryName)
   const exceeded = spent > budgetAmount;
   const percentExceeded = exceeded ? percentUsed - 100 : 0;
 
-  // Check if we should create notifications (avoid duplicates by checking recent notifications)
   const db = getDb();
-  const recentNotification = db.prepare(`
-    SELECT * FROM notifications 
-    WHERE userId = ? AND type IN ('budget_warning', 'budget_exceeded') 
-    AND message LIKE ?
-    ORDER BY createdAt DESC LIMIT 1
-  `).get(userId, `%${categoryName}%`);
-
-  const now = new Date();
-  const notificationTime = recentNotification ? new Date(recentNotification.createdAt) : null;
-  const hoursSinceLastNotification = notificationTime ? (now - notificationTime) / (1000 * 60 * 60) : 999;
-
-  // Only create notification if it's been more than 24 hours since the last similar notification
-  if (hoursSinceLastNotification < 24) return;
 
   if (exceeded) {
-    const exceededAmount = spent - budgetAmount;
-    notificationService.createNotification({
-      userId,
-      type: 'budget_exceeded',
-      title: 'Vượt ngân sách',
-      message: `Bạn đã vượt ngân sách ${categoryName} ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(exceededAmount)} (đã sử dụng ${Math.round(percentUsed)}%).`,
-    });
+    // Check if we already sent an exceeded notification for this category
+    const existingExceededNotification = db.prepare(`
+      SELECT * FROM notifications 
+      WHERE userId = ? 
+      AND type = 'budget_exceeded'
+      AND message LIKE ?
+      ORDER BY createdAt DESC LIMIT 1
+    `).get(userId, `%${categoryName}%`);
+
+    if (!existingExceededNotification) {
+      const exceededAmount = spent - budgetAmount;
+      notificationService.createNotification({
+        userId,
+        type: 'budget_exceeded',
+        title: 'Vượt ngân sách',
+        message: `Bạn đã vượt ngân sách ${categoryName} ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(exceededAmount)} (đã sử dụng ${Math.round(percentUsed)}%).`,
+      });
+    }
   } else if (percentUsed >= 80) {
     // Determine milestone reached
     let milestone = 80;
@@ -300,11 +297,23 @@ function checkBudgetNotifications(userId, categoryId, month, year, categoryName)
     else if (percentUsed >= 90) milestone = 90;
     else if (percentUsed >= 85) milestone = 85;
     
-    notificationService.createNotification({
-      userId,
-      type: 'budget_warning',
-      title: 'Cảnh báo ngân sách',
-      message: `Ngân sách ${categoryName} đã chạm mốc ${milestone}% (đã sử dụng ${Math.round(percentUsed)}%).`,
-    });
+    // Check if we already sent a notification for this specific milestone
+    const existingMilestoneNotification = db.prepare(`
+      SELECT * FROM notifications 
+      WHERE userId = ? 
+      AND type = 'budget_warning'
+      AND message LIKE ?
+      ORDER BY createdAt DESC LIMIT 1
+    `).get(userId, `%chạm mốc ${milestone}%${categoryName}%`);
+
+    // Only create notification if we haven't sent one for this specific milestone yet
+    if (!existingMilestoneNotification) {
+      notificationService.createNotification({
+        userId,
+        type: 'budget_warning',
+        title: 'Cảnh báo ngân sách',
+        message: `Ngân sách ${categoryName} đã chạm mốc ${milestone}% (đã sử dụng ${Math.round(percentUsed)}%).`,
+      });
+    }
   }
 }

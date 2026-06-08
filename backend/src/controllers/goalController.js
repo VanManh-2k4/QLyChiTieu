@@ -2,7 +2,8 @@ import * as goalService from '../services/goalService.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 export const listGoals = asyncHandler(async (req, res) => {
-  const goals = goalService.listGoals(req.user.id);
+  const status = req.query.status || null;
+  const goals = goalService.listGoals(req.user.id, status);
   res.json(goals);
 });
 

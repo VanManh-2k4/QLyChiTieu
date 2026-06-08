@@ -57,8 +57,16 @@ export function formatRelativeTime(dateString) {
   const now = new Date();
   const diffInSeconds = Math.floor((now - date) / 1000);
   
+  // Hiển thị thời gian thực cho thông báo mới (dưới 5 phút)
+  if (diffInSeconds < 300) {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  
+  // Hiển thị relative time cho thông báo cũ hơn
   if (diffInSeconds < 60) {
-    return 'Vừa xong';
+    return `${diffInSeconds} giây trước`;
   }
   
   const diffInMinutes = Math.floor(diffInSeconds / 60);

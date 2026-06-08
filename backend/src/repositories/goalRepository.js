@@ -1,15 +1,26 @@
 import { getDb } from '../database/db.js';
 
-export function listForUser(userId) {
+export function listForUser(userId, status = null) {
   const db = getDb();
-  const stmt = db.prepare(`
+  let query = `
     SELECT g.*, w.name as walletName
     FROM saving_goals g
     LEFT JOIN wallets w ON g.walletId = w.id
     WHERE g.userId = ?
-    ORDER BY g.targetDate ASC
-  `);
-  return stmt.all(userId);
+  `;
+  const params = [userId];
+  
+  if (status === 'active') {
+    query += ` AND g.status IN ('active', 'overdue')`;
+  } else if (status) {
+    query += ` AND g.status = ?`;
+    params.push(status);
+  }
+  
+  query += ` ORDER BY g.targetDate ASC`;
+  
+  const stmt = db.prepare(query);
+  return stmt.all(...params);
 }
 
 export function getById(id, userId) {

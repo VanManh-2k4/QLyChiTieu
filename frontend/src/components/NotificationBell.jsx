@@ -22,7 +22,16 @@ export function NotificationBell() {
       fetchUnreadCount();
     }, 10000);
     
-    return () => clearInterval(interval);
+    // Auto-update time display every minute
+    const timeUpdateInterval = setInterval(() => {
+      // Force re-render to update relative time display
+      setNotifications(prev => [...prev]);
+    }, 60000);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(timeUpdateInterval);
+    };
   }, []);
 
   useEffect(() => {

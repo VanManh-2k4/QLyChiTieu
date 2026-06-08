@@ -13,6 +13,16 @@ export function Notifications() {
     fetchNotifications();
   }, [filter]);
 
+  // Auto-update time display every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render to update relative time display
+      setNotifications(prev => [...prev]);
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
   const fetchNotifications = async () => {
     try {
       setLoading(true);

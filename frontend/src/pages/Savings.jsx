@@ -61,6 +61,7 @@ export function Savings() {
   const [transactionType, setTransactionType] = useState('deposit'); // 'deposit' or 'withdraw'
   const [goalForm, setGoalForm] = useState(initialGoalForm);
   const [goalFormErrors, setGoalFormErrors] = useState({});
+  const [goalStatusFilter, setGoalStatusFilter] = useState('active'); // 'active' or 'completed'
 
   // Lock body scroll when modals are open
   useEffect(() => {
@@ -106,7 +107,7 @@ export function Savings() {
     setLoading(true);
     try {
       const [g, d] = await Promise.all([
-        api.get('/goals'),
+        api.get('/goals', { params: { status: goalStatusFilter } }),
         api.get('/goals/dashboard'),
       ]);
       setGoals(g.data || []);
@@ -145,7 +146,7 @@ export function Savings() {
     if (activeTab === 'goals') {
       loadGoals();
     }
-  }, [activeTab]);
+  }, [activeTab, goalStatusFilter]);
 
   const createAccount = async (e) => {
     e.preventDefault();
@@ -361,7 +362,14 @@ export function Savings() {
       setShowTransactionModal(false);
       await loadGoals();
       await loadBase(); // Update wallet balance
-      if (selectedGoal) await loadGoalTransactions(selectedGoal.id);
+      if (selectedGoal) {
+        // Update selectedGoal with fresh data from goals list
+        const updatedGoal = goals.find(g => g.id === selectedGoal.id);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+          await loadGoalTransactions(selectedGoal.id);
+        }
+      }
     } catch (ex) {
       setErr(ex.response?.data?.message || 'Không thể thêm tiền');
       setMsg('');
@@ -398,7 +406,14 @@ export function Savings() {
       setShowTransactionModal(false);
       await loadGoals();
       await loadBase(); // Update wallet balance
-      if (selectedGoal) await loadGoalTransactions(selectedGoal.id);
+      if (selectedGoal) {
+        // Update selectedGoal with fresh data from goals list
+        const updatedGoal = goals.find(g => g.id === selectedGoal.id);
+        if (updatedGoal) {
+          setSelectedGoal(updatedGoal);
+          await loadGoalTransactions(selectedGoal.id);
+        }
+      }
     } catch (ex) {
       setErr(ex.response?.data?.message || 'Không thể rút tiền');
       setMsg('');
@@ -444,7 +459,8 @@ export function Savings() {
     await loadGoalTransactions(goal.id);
   };
 
-  const totalSavings = accounts.reduce((s, a) => s + Number(a.balance || 0), 0) + goals.reduce((s, g) => s + Number(g.currentAmount || 0), 0);
+  const totalAccounts = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  const totalGoals = goals.reduce((s, g) => s + Number(g.currentAmount || 0), 0);
   const selectedWallet = wallets.find((w) => Number(w.id) === Number(transferForm.walletId));
   const transferAmount = Number(unformatNumberInput(transferForm.amount));
   const exceedsWalletLimit =
@@ -508,7 +524,7 @@ export function Savings() {
         <>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-              Tổng tiết kiệm: {formatVND(totalSavings)}
+              Tổng quỹ tiết kiệm: {formatVND(totalAccounts)}
             </div>
           </div>
 
@@ -748,6 +764,12 @@ export function Savings() {
 
       {activeTab === 'goals' && (
         <div className="space-y-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">
+              Tổng mục tiêu: {formatVND(totalGoals)}
+            </div>
+          </div>
+
           {/* Goals Dashboard */}
           {goalDashboard && (
             <div className="grid gap-4 md:grid-cols-4">
@@ -799,15 +821,41 @@ export function Savings() {
           )}
 
           {/* Goals List */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Danh sách mục tiêu</h2>
-            <button
-              onClick={() => openGoalModal()}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg transition hover:scale-105"
-            >
-              <Plus className="h-4 w-4" />
-              Tạo mục tiêu mới
-            </button>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-slate-900">Danh sách mục tiêu</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setGoalStatusFilter('active')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${
+                    goalStatusFilter === 'active'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  Đang thực hiện
+                </button>
+                <button
+                  onClick={() => setGoalStatusFilter('completed')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${
+                    goalStatusFilter === 'completed'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  Đã hoàn thành
+                </button>
+              </div>
+            </div>
+            {goalStatusFilter === 'active' && (
+              <button
+                onClick={() => openGoalModal()}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg transition hover:scale-105"
+              >
+                <Plus className="h-4 w-4" />
+                Tạo mục tiêu mới
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -815,13 +863,17 @@ export function Savings() {
           ) : goals.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
               <Target className="mx-auto h-12 w-12 text-slate-300" />
-              <p className="mt-4 text-slate-600">Chưa có mục tiêu nào</p>
-              <button
-                onClick={() => openGoalModal()}
-                className="mt-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg transition hover:scale-105"
-              >
-                Tạo mục tiêu đầu tiên
-              </button>
+              <p className="mt-4 text-slate-600">
+                {goalStatusFilter === 'completed' ? 'Chưa có mục tiêu nào hoàn thành' : 'Chưa có mục tiêu nào'}
+              </p>
+              {goalStatusFilter === 'active' && (
+                <button
+                  onClick={() => openGoalModal()}
+                  className="mt-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 font-semibold text-white shadow-lg transition hover:scale-105"
+                >
+                  Tạo mục tiêu đầu tiên
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -846,20 +898,22 @@ export function Savings() {
                       }`}>
                         {isCompleted ? '✓ Hoàn thành' : isOverdue ? '⚠ Quá hạn' : '○ Đang thực hiện'}
                       </span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openGoalModal(goal); }}
-                          className="p-1 hover:bg-slate-100 rounded"
-                        >
-                          <Edit2 className="h-4 w-4 text-slate-600" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteGoal(goal.id); }}
-                          className="p-1 hover:bg-slate-100 rounded"
-                        >
-                          <Trash2 className="h-4 w-4 text-rose-600" />
-                        </button>
-                      </div>
+                      {goalStatusFilter === 'active' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openGoalModal(goal); }}
+                            className="p-1 hover:bg-slate-100 rounded"
+                          >
+                            <Edit2 className="h-4 w-4 text-slate-600" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteGoal(goal.id); }}
+                            className="p-1 hover:bg-slate-100 rounded"
+                          >
+                            <Trash2 className="h-4 w-4 text-rose-600" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <h4 className="font-semibold mb-2">{goal.name}</h4>
                     <div className="mb-4">
@@ -889,20 +943,22 @@ export function Savings() {
                         </p>
                       )}
                     </div>
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openTransactionModal(goal, 'deposit'); }}
-                        className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
-                      >
-                        Thêm tiền
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openTransactionModal(goal, 'withdraw'); }}
-                        className="flex-1 rounded-lg bg-slate-600 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
-                      >
-                        Rút tiền
-                      </button>
-                    </div>
+                    {goalStatusFilter === 'active' && (
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openTransactionModal(goal, 'deposit'); }}
+                          className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition"
+                        >
+                          Thêm tiền
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openTransactionModal(goal, 'withdraw'); }}
+                          className="flex-1 rounded-lg bg-slate-600 py-2 text-xs font-semibold text-white hover:bg-slate-700 transition"
+                        >
+                          Rút tiền
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

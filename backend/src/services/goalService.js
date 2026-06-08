@@ -5,8 +5,8 @@ import { logActivity } from './historyService.js';
 import { getDb } from '../database/db.js';
 import * as notificationService from './notificationService.js';
 
-export function listGoals(userId) {
-  const goals = goalRepository.listForUser(userId);
+export function listGoals(userId, status = null) {
+  const goals = goalRepository.listForUser(userId, status);
   
   // Add calculated stats to each goal
   return goals.map(goal => {
@@ -100,7 +100,7 @@ export function updateGoal(id, userId, updates) {
     goalRepository.update(id, userId, { status: newStatus });
   }
   
-  const updatedGoal = goalRepository.getById(id, userId);
+  const finalGoal = goalRepository.getById(id, userId);
   
   // Log activity
   logActivity({
@@ -113,7 +113,7 @@ export function updateGoal(id, userId, updates) {
   });
   
   return {
-    ...updatedGoal,
+    ...finalGoal,
     stats
   };
 }
@@ -222,9 +222,10 @@ export function addFunds(id, userId, transactionData) {
   checkGoalProgressNotifications(userId, updatedGoal, stats);
   
   const finalGoal = goalRepository.getById(id, userId);
+  const finalStats = calculateGoalStats(finalGoal);
   return {
     ...finalGoal,
-    stats
+    stats: finalStats
   };
 }
 
@@ -289,9 +290,10 @@ export function withdrawFunds(id, userId, transactionData) {
   goalRepository.update(id, userId, { status: newStatus });
   
   const finalGoal = goalRepository.getById(id, userId);
+  const finalStats = calculateGoalStats(finalGoal);
   return {
     ...finalGoal,
-    stats
+    stats: finalStats
   };
 }
 
@@ -322,7 +324,7 @@ function calculateGoalStats(goal) {
   
   const now = new Date();
   const targetDate = new Date(goal.targetDate);
-  const daysRemaining = Math.max(0, Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)));
+  const daysRemaining = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
   
   // Calculate required daily/monthly savings
   let dailyRequired = 0;
@@ -343,15 +345,13 @@ function calculateGoalStats(goal) {
 }
 
 function determineStatus(goal, stats) {
-  if (stats.progress >= 100) {
+  // Chỉ báo completed khi currentAmount thực sự >= targetAmount
+  if (goal.currentAmount >= goal.targetAmount && goal.targetAmount > 0) {
     return 'completed';
   }
   
-  if (stats.daysRemaining <= 0) {
-    return 'overdue';
-  }
-  
-  if (stats.daysRemaining <= 7) {
+  // Chỉ báo overdue khi chưa hoàn thành và deadline đã qua
+  if (stats.daysRemaining < 0) {
     return 'overdue';
   }
   
