@@ -145,9 +145,10 @@ export function NotificationBell() {
     }
 
     // Parse amount from message (for budget exceeded)
-    const amountMatch = notification.message.match(/([\d,.]+)\s*VNĐ/);
+    // Support formats with VNĐ, VND or the currency symbol ₫ and allow dot/comma separators
+    const amountMatch = notification.message.match(/([\d.,]+)\s*(?:VNĐ|VND|₫)/i);
     if (amountMatch) {
-      details.amount = amountMatch[1].replace(/,/g, '');
+      details.amount = amountMatch[1].replace(/[.,]/g, '');
     }
 
     // Extract category name

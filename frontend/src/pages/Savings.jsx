@@ -86,12 +86,11 @@ export function Savings() {
     const [w, a] = await Promise.all([api.get('/wallets'), api.get('/savings/accounts')]);
     setWallets(w.data || []);
     setAccounts(a.data || []);
-    if (w.data?.[0] && !transferForm.walletId) {
-      setTransferForm((f) => ({ ...f, walletId: String(w.data[0].id) }));
-    }
-    if (a.data?.[0] && !transferForm.savingsId) {
-      setTransferForm((f) => ({ ...f, savingsId: String(a.data[0].id) }));
-    }
+    setTransferForm((f) => ({
+      ...f,
+      walletId: f.walletId || (w.data?.[0] ? String(w.data[0].id) : ''),
+      savingsId: f.savingsId || (a.data?.[0] ? String(a.data[0].id) : ''),
+    }));
   };
 
   const loadTransfers = async (page = transferPage) => {
@@ -211,7 +210,9 @@ export function Savings() {
       await loadBase();
       await loadTransfers(transferPage);
     } catch (ex) {
-      setErr(ex.response?.data?.message || 'Không thể tạo giao dịch tiết kiệm');
+      setErr(
+        ex.response?.data?.error || ex.response?.data?.message || 'Không thể tạo giao dịch tiết kiệm'
+      );
     }
   };
 
@@ -339,6 +340,25 @@ export function Savings() {
     }
   };
 
+  const deleteSavingsAccount = async (accountId, accountName) => {
+    const ok = await confirm({
+      title: 'Xác nhận xóa quỹ tiết kiệm',
+      message: `Bạn có chắc chắn muốn xóa quỹ tiết kiệm "${accountName}"? Hành động này không thể hoàn tác.`,
+      confirmText: 'Xóa quỹ',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/savings/accounts/${accountId}`);
+      setMsg('Đã xóa quỹ tiết kiệm.');
+      setErr('');
+      await loadBase();
+    } catch (ex) {
+      setErr(ex.response?.data?.message || 'Không thể xóa quỹ tiết kiệm');
+      setMsg('');
+    }
+  };
+
   const addFunds = async (e) => {
     e.preventDefault();
     setErr('');
@@ -350,12 +370,25 @@ export function Savings() {
       setTransactionFormErrors({ amount: 'Số tiền phải lớn hơn 0' });
       return;
     }
+
+    const remaining = Number(selectedGoal.stats?.amountRemaining ?? 0);
+    if (amount > remaining) {
+      const surplusAmount = amount - Math.max(0, remaining);
+      const ok = await confirm({
+        title: 'Xác nhận nạp vượt mục tiêu',
+        message: `Số tiền bạn nhập sẽ vượt mục tiêu ${formatVND(surplusAmount)}. Bạn có muốn tiếp tục?`,
+        confirmText: 'Tiếp tục',
+        variant: 'primary',
+      });
+      if (!ok) return;
+    }
+
     try {
-      await api.post(`/goals/${selectedGoal.id}/deposit`, {
+      const { data } = await api.post(`/goals/${selectedGoal.id}/deposit`, {
         amount,
         note: transactionForm.note || undefined,
       });
-      setMsg('Đã thêm tiền vào mục tiêu.');
+      setMsg(data.message || 'Đã thêm tiền vào mục tiêu.');
       setErr('');
       setTransactionForm({ amount: '', note: '' });
       setTransactionFormErrors({});
@@ -469,6 +502,14 @@ export function Savings() {
     Number.isFinite(transferAmount) &&
     transferAmount > Number(selectedWallet.balance);
 
+  const depositAmountValue = Number(unformatNumberInput(transactionForm.amount));
+  const remainingGoalAmount = Number(selectedGoal?.stats?.amountRemaining ?? 0);
+  const depositExceedsGoal =
+    transactionType === 'deposit' &&
+    selectedGoal &&
+    Number.isFinite(depositAmountValue) &&
+    depositAmountValue > remainingGoalAmount;
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -537,7 +578,20 @@ export function Savings() {
                     key={a.id}
                     className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                   >
-                    <p className="text-sm font-medium text-slate-600">{a.name}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-600">{a.name}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSavingsAccount(a.id, a.name);
+                        }}
+                        className="rounded-full p-1 text-rose-600 transition hover:bg-slate-100"
+                        aria-label={`Xóa quỹ tiết kiệm ${a.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                     <p className="mt-2 text-2xl font-bold text-slate-900">
                       {formatVND(a.balance)}
                     </p>
@@ -661,7 +715,13 @@ export function Savings() {
                 </div>
                 <button
                   type="submit"
-                  disabled={accounts.length === 0 || wallets.length === 0 || exceedsWalletLimit}
+                  disabled={
+                    accounts.length === 0 ||
+                    wallets.length === 0 ||
+                    !transferForm.walletId ||
+                    !transferForm.savingsId ||
+                    exceedsWalletLimit
+                  }
                   className="w-full rounded-xl bg-slate-900 py-2.5 text-sm font-semibold text-white transition hover:scale-[1.01] disabled:opacity-60"
                 >
                   Ghi nhận
@@ -932,7 +992,7 @@ export function Savings() {
                       <p className="text-xs text-slate-600">
                         <span className="font-medium">Tiến độ:</span> {(stats.progress || 0).toFixed(0)}%
                       </p>
-                      {stats.daysRemaining !== undefined && (
+                      {stats.daysRemaining !== undefined && !isCompleted && (
                         <p className="text-xs text-slate-600">
                           <span className="font-medium">Còn lại:</span> {stats.daysRemaining} ngày
                         </p>
@@ -997,7 +1057,7 @@ export function Savings() {
                     <p><span className="font-medium">Số tiền hiện tại:</span> {formatVND(selectedGoal.currentAmount)}</p>
                     <p><span className="font-medium">Số tiền mục tiêu:</span> {formatVND(selectedGoal.targetAmount)}</p>
                     <p><span className="font-medium">Ngày hoàn thành:</span> {new Date(selectedGoal.targetDate).toLocaleDateString('vi-VN')}</p>
-                    {selectedGoal.stats?.daysRemaining !== undefined && (
+                    {selectedGoal.stats?.daysRemaining !== undefined && selectedGoal.status !== 'completed' && (
                       <p><span className="font-medium">Còn lại:</span> {selectedGoal.stats.daysRemaining} ngày</p>
                     )}
                     {selectedGoal.stats?.amountRemaining !== undefined && selectedGoal.stats.amountRemaining > 0 && (
@@ -1199,6 +1259,22 @@ export function Savings() {
                   />
                   {transactionFormErrors.amount && (
                     <p className="mt-1 text-xs text-rose-600">{transactionFormErrors.amount}</p>
+                  )}
+                  {transactionType === 'deposit' && selectedGoal && Number.isFinite(depositAmountValue) && (
+                    <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                      {remainingGoalAmount > 0 ? (
+                        <p>
+                          Còn lại cần tiết kiệm: <span className="font-semibold">{formatVND(remainingGoalAmount)}</span>.
+                        </p>
+                      ) : (
+                        <p>Mục tiêu đã hoàn thành. Nạp thêm sẽ tạo dư tiền trong mục tiêu.</p>
+                      )}
+                      {depositExceedsGoal && (
+                        <p className="mt-2 font-semibold text-amber-900">
+                          Vượt mục tiêu thêm {formatVND(depositAmountValue - Math.max(0, remainingGoalAmount))}.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>

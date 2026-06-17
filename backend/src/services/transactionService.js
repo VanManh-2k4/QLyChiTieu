@@ -278,8 +278,10 @@ function checkBudgetNotifications(userId, categoryId, month, year, categoryName)
       WHERE userId = ? 
       AND type = 'budget_exceeded'
       AND message LIKE ?
+      AND CAST(strftime('%Y', createdAt) AS INTEGER) = ?
+      AND CAST(strftime('%m', createdAt) AS INTEGER) = ?
       ORDER BY createdAt DESC LIMIT 1
-    `).get(userId, `%${categoryName}%`);
+    `).get(userId, `%${categoryName}%`, year, month);
 
     if (!existingExceededNotification) {
       const exceededAmount = spent - budgetAmount;
@@ -303,8 +305,10 @@ function checkBudgetNotifications(userId, categoryId, month, year, categoryName)
       WHERE userId = ? 
       AND type = 'budget_warning'
       AND message LIKE ?
+      AND CAST(strftime('%Y', createdAt) AS INTEGER) = ?
+      AND CAST(strftime('%m', createdAt) AS INTEGER) = ?
       ORDER BY createdAt DESC LIMIT 1
-    `).get(userId, `%chạm mốc ${milestone}%${categoryName}%`);
+    `).get(userId, `%${categoryName}%chạm mốc ${milestone}%`, year, month);
 
     // Only create notification if we haven't sent one for this specific milestone yet
     if (!existingMilestoneNotification) {

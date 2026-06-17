@@ -45,8 +45,7 @@ function enrichWithSpend(b, userId) {
 }
 
 export function list(userId) {
-  // Chốt tháng cũ trước khi liệt kê: ghi log activity về việc chốt ngân sách
-  // Mô hình hiện đại: không hoàn tiền về ví, chỉ ghi log
+
   ensureMonthlyRollover(userId);
 
   const now = new Date();
@@ -85,7 +84,6 @@ export function create(userId, data) {
     err.status = 400;
     throw err;
   }
-  // Mô hình hiện đại: không trừ tiền từ ví khi tạo ngân sách
   try {
     const db = getDb();
     const run = db.transaction(() => {
@@ -148,13 +146,11 @@ export function update(userId, id, data) {
       err.status = 404;
       throw err;
     }
-    // Mô hình hiện đại: không kiểm tra số dư ví khi cập nhật ngân sách
-    // Cho phép giảm ngân sách dù đã chi vượt (budget chỉ là kế hoạch)
+
   }
   try {
     const db = getDb();
     const run = db.transaction(() => {
-      // Mô hình hiện đại: không điều chỉnh ví khi cập nhật ngân sách
       return budgetRepository.update(id, userId, data);
     });
     const b = run();

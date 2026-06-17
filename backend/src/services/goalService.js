@@ -223,9 +223,16 @@ export function addFunds(id, userId, transactionData) {
   
   const finalGoal = goalRepository.getById(id, userId);
   const finalStats = calculateGoalStats(finalGoal);
+  const surplusAmount = Math.max(0, finalGoal.currentAmount - finalGoal.targetAmount);
+  const message = finalGoal.currentAmount >= finalGoal.targetAmount
+    ? `Đã hoàn thành mục tiêu "${finalGoal.name}"` + (surplusAmount > 0 ? `, dư ${surplusAmount.toLocaleString('vi-VN')}đ.` : '.')
+    : `Đã thêm ${value.amount.toLocaleString('vi-VN')}đ vào mục tiêu "${finalGoal.name}".`;
+
   return {
     ...finalGoal,
-    stats: finalStats
+    stats: finalStats,
+    message,
+    surplusAmount,
   };
 }
 
@@ -378,7 +385,7 @@ function checkGoalProgressNotifications(userId, goal, stats) {
         AND type IN ('savings_progress', 'savings_completed')
         AND message LIKE ?
         ORDER BY createdAt DESC LIMIT 1
-      `).get(userId, `%chạm mốc ${milestone}%${goal.name}%`);
+      `).get(userId, `%chạm mốc ${milestone}% của mục tiêu ${goal.name}%`);
 
       // Also check for completion notification
       const completionNotification = milestone === 100 ? db.prepare(`

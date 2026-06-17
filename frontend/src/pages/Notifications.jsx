@@ -136,9 +136,9 @@ export function Notifications() {
       details.percentage = parseInt(percentageMatch[1]);
     }
 
-    const amountMatch = notification.message.match(/([\d,.]+)\s*VNĐ/);
+    const amountMatch = notification.message.match(/([\d.,]+)\s*(?:VNĐ|VND|₫)/i);
     if (amountMatch) {
-      details.amount = amountMatch[1].replace(/,/g, '');
+      details.amount = amountMatch[1].replace(/[.,]/g, '');
     }
 
     const categoryMatch = notification.message.match(/ngân sách\s+(.+?)\s+(?:đã|đã sử dụng)/i);

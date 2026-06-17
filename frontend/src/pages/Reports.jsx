@@ -684,24 +684,7 @@ export function Reports() {
           )}
 
           {/* Summary Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-100 p-3 text-emerald-600">
-                <Lightbulb className="h-6 w-6" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold">Tiết Kiệm Tiềm Năng</h3>
-                <p className="text-sm text-slate-600">
-                  Có thể tiết kiệm được {formatVND(savingsData.totalPotentialSavings)} ({savingsData.savingsPercentage}%)
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-emerald-600">
-                  {formatVND(savingsData.totalPotentialSavings)}
-                </p>
-              </div>
-            </div>
-          </div>
+          
 
           {/* Insights */}
           {(savingsData.insights || []).length > 0 && (
@@ -775,35 +758,8 @@ export function Reports() {
           {/* Spending Habits Analysis */}
           {savingsData.spendingHabits && (
             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="rounded-lg bg-purple-100 p-3 text-purple-600">
-                  <Calendar className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Thói Quen Chi Tiêu</h3>
-                  <p className="text-sm text-slate-600">Phân tích chi tiêu theo thời gian</p>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Chi tiêu cuối tuần TB</p>
-                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.spendingHabits.weekendAvg)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Chi tiêu ngày thường TB</p>
-                  <p className="mt-1 text-xl font-bold">{formatVND(savingsData.spendingHabits.weekdayAvg)}</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Tỷ lệ cuối tuần/ngày thường</p>
-                  <p className={`mt-1 text-xl font-bold ${savingsData.spendingHabits.weekendToWeekdayRatio > 1.5 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                    {savingsData.spendingHabits.weekendToWeekdayRatio.toFixed(1)}x
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Tuần chi tiêu cao nhất</p>
-                  <p className="mt-1 text-xl font-bold">Tuần {savingsData.spendingHabits.highestWeek} ({formatVND(savingsData.spendingHabits.highestWeekAvg)})</p>
-                </div>
-              </div>
+              
+              
               {/* Spending by Day of Week Chart */}
               <div className="mt-6">
                 <h4 className="font-semibold mb-3">Chi tiêu theo ngày trong tuần</h4>
@@ -844,66 +800,7 @@ export function Reports() {
           )}
 
           {/* Savings Potential Breakdown */}
-          {savingsData.savingsPotential && (
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="rounded-lg bg-emerald-100 p-3 text-emerald-600">
-                  <Target className="h-6 w-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Phân Tích Cấu Trúc Chi Tiêu</h3>
-                  <p className="text-sm text-slate-600">Phân loại chi tiêu để tìm cơ hội tiết kiệm</p>
-                </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 mb-6">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Chi tiêu không cần thiết</p>
-                  <p className="mt-1 text-xl font-bold text-rose-600">{formatVND(savingsData.savingsPotential.discretionarySpending)}</p>
-                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.discretionaryRatio.toFixed(1)}% tổng chi tiêu</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Chi tiêu cố định</p>
-                  <p className="mt-1 text-xl font-bold text-slate-600">{formatVND(savingsData.savingsPotential.fixedSpending)}</p>
-                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.fixedRatio.toFixed(1)}% tổng chi tiêu</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Chi tiêu linh hoạt</p>
-                  <p className="mt-1 text-xl font-bold text-amber-600">{formatVND(savingsData.savingsPotential.flexibleSpending)}</p>
-                  <p className="text-sm text-slate-500">{savingsData.savingsPotential.flexibleRatio.toFixed(1)}% tổng chi tiêu</p>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-medium text-slate-600">Tiềm năng tiết kiệm</p>
-                  <p className="mt-1 text-xl font-bold text-emerald-600">{formatVND(savingsData.savingsPotential.totalSavingsPotential)}</p>
-                  <p className="text-sm text-slate-500">Từ chi tiêu không cần thiết & cuối tuần</p>
-                </div>
-              </div>
-              {/* Pie Chart */}
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie
-                      data={[
-                        { name: 'Không cần thiết', value: savingsData.savingsPotential.discretionarySpending, color: '#ef4444' },
-                        { name: 'Cố định', value: savingsData.savingsPotential.fixedSpending, color: '#64748b' },
-                        { name: 'Linh hoạt', value: savingsData.savingsPotential.flexibleSpending, color: '#f59e0b' },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      dataKey="value"
-                    >
-                      <Cell fill="#ef4444" />
-                      <Cell fill="#64748b" />
-                      <Cell fill="#f59e0b" />
-                    </Pie>
-                    <Tooltip formatter={(value) => formatVND(value)} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
+          
 
           {/* Suggestions */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -1054,46 +951,7 @@ export function Reports() {
         </div>
       ) : budgetCompareData ? (
         <div className="space-y-6">
-          {/* Budget Health Score Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className={`rounded-lg p-3 ${
-                budgetCompareData.healthScore >= 80 ? 'bg-emerald-100 text-emerald-600' :
-                budgetCompareData.healthScore >= 60 ? 'bg-amber-100 text-amber-600' :
-                'bg-rose-100 text-rose-600'
-              }`}>
-                <Target className="h-6 w-6" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold">Điểm Tuân Thủ Ngân Sách</h3>
-                <p className="text-sm text-slate-600">
-                  Tổng chi tiêu: {formatVND(budgetCompareData.totalExpense)} / {formatVND(budgetCompareData.totalBudget)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className={`text-3xl font-bold ${
-                  budgetCompareData.healthScore >= 80 ? 'text-emerald-600' :
-                  budgetCompareData.healthScore >= 60 ? 'text-amber-600' :
-                  'text-rose-600'
-                }`}>
-                  {(budgetCompareData.healthScore ?? 0).toFixed(0)}
-                </p>
-                <p className="text-xs text-slate-500">/ 100</p>
-              </div>
-            </div>
-            
-            {/* Score Factors */}
-            <div className="mt-4 grid gap-2 md:grid-cols-2">
-              {budgetCompareData.scoreFactors.map((factor, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">{factor.factor}:</span>
-                  <span className={`font-semibold ${factor.points >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {factor.points >= 0 ? '+' : ''}{factor.points} ({factor.reason})
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          
 
           {/* Remaining Budget */}
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

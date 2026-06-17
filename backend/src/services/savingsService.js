@@ -46,14 +46,57 @@ export function removeAccount(userId, id) {
     err.status = 404;
     throw err;
   }
-  savingsRepository.softDeleteAccount(id, userId);
-  logActivity({
-    userId,
-    actionType: 'delete',
-    entityType: 'savings_account',
-    entityId: id,
-    title: `Xóa quỹ tiết kiệm ${existing.name}`,
+  const db = getDb();
+  const run = db.transaction(() => {
+    if (existing.balance && existing.balance > 0) {
+      const last = savingsRepository.findLastTransferForSavings(id, userId);
+      let wallet = null;
+      if (last) {
+        wallet = walletRepository.findByIdForUser(last.walletId, userId);
+      }
+      // Fallback: pick the first available wallet for the user
+      if (!wallet) {
+        const wallets = walletRepository.listByUser(userId);
+        if (!wallets || wallets.length === 0) {
+          const err = new Error('No wallet available to refund savings balance');
+          err.status = 400;
+          throw err;
+        }
+        wallet = wallets[0];
+      }
+
+      // Move the balance back to wallet and record a withdraw transfer
+      walletRepository.adjustBalance(wallet.id, existing.balance);
+      savingsRepository.adjustSavingsBalance(id, -existing.balance);
+      savingsRepository.insertTransfer({
+        userId,
+        walletId: wallet.id,
+        savingsId: id,
+        direction: 'withdraw',
+        amount: existing.balance,
+        note: 'Hoàn tiền khi xóa quỹ tiết kiệm',
+      });
+      logActivity({
+        userId,
+        actionType: 'create',
+        entityType: 'savings_transfer',
+        title: `Hoàn tiền quỹ ${existing.name} về ví ${wallet.name}`,
+        amount: existing.balance,
+      });
+    }
+
+    // Soft-delete the savings account
+    savingsRepository.softDeleteAccount(id, userId);
+    logActivity({
+      userId,
+      actionType: 'delete',
+      entityType: 'savings_account',
+      entityId: id,
+      title: `Xóa quỹ tiết kiệm ${existing.name}`,
+    });
   });
+
+  run();
 }
 
 export function createTransfer(userId, body) {

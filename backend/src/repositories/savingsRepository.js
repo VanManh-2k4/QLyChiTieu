@@ -100,6 +100,14 @@ export function listTransfers(userId, { page = 1, limit = 20 } = {}) {
   return { rows, total, page, limit };
 }
 
+export function findLastTransferForSavings(savingsId, userId) {
+  return getDb()
+    .prepare(
+      `SELECT * FROM savings_transfers WHERE savingsId = ? AND userId = ? ORDER BY date DESC, id DESC LIMIT 1`
+    )
+    .get(savingsId, userId);
+}
+
 export function sumSavingsBalanceByUser(userId) {
   const row = getDb()
     .prepare(

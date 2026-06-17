@@ -294,7 +294,7 @@ export function analyzeTrends(userId, periodType, periods) {
     });
 
     const categories = categoryRepository.listAll(userId);
-    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]))
 
     // Separate budgeted and non-budgeted categories
     const budgetedCategoryBreakdown = [];
@@ -1289,8 +1289,31 @@ export function suggestSavings(userId, periodType, period) {
   }
 
   // Pattern-based suggestions
-  const sortedSuggestions = suggestions.sort((a, b) => b.potentialSavings - a.potentialSavings);
-  const totalPotentialSavings = sortedSuggestions.reduce((sum, s) => sum + s.potentialSavings, 0);
+  // Sort by priority first, then by potential savings
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  const sortedSuggestions = suggestions.sort((a, b) => {
+    const priorityDiff = (priorityOrder[a.priority] || 3) - (priorityOrder[b.priority] || 3);
+    if (priorityDiff !== 0) return priorityDiff;
+    return b.potentialSavings - a.potentialSavings;
+  });
+
+  // Deduplicate by category: keep only the best suggestion per category
+  const deduplicatedSuggestions = [];
+  const categoryMap2 = new Map(); // Track which categories have been added
+  
+  for (const suggestion of sortedSuggestions) {
+    const categoryId = suggestion.categoryId || `type_${suggestion.type}`; // Use categoryId if available, else use type
+    
+    // If this category hasn't been added yet, add this suggestion
+    if (!categoryMap2.has(categoryId)) {
+      deduplicatedSuggestions.push(suggestion);
+      categoryMap2.set(categoryId, true);
+    }
+  }
+
+  // Limit to top 5 suggestions
+  const finalSuggestions = deduplicatedSuggestions.slice(0, 5);
+  const totalPotentialSavings = finalSuggestions.reduce((sum, s) => sum + s.potentialSavings, 0);
 
   // Generate overall insights
   const insights = [];
@@ -1304,7 +1327,7 @@ export function suggestSavings(userId, periodType, period) {
     });
   }
 
-  const highPriorityCount = suggestions.filter((s) => s.priority === 'high').length;
+  const highPriorityCount = finalSuggestions.filter((s) => s.priority === 'high').length;
   if (highPriorityCount > 0) {
     insights.push({
       type: 'warning',
@@ -1341,7 +1364,7 @@ export function suggestSavings(userId, periodType, period) {
     totalIncome: report.totalIncome || 0,
     savings: report.savings || 0,
     savingsRate: report.savingsRate || 0,
-    suggestions: sortedSuggestions,
+    suggestions: finalSuggestions,
     totalPotentialSavings,
     savingsPercentage: report.totalExpense > 0 
       ? ((totalPotentialSavings / report.totalExpense) * 100).toFixed(2)
